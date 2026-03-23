@@ -37,6 +37,9 @@ pub mod alloy;
 #[cfg(any(test, feature = "alloy"))]
 pub mod alloy;
 
+pub mod compress;
+pub use compress::{Compress, Decompress};
+
 pub mod txtype;
 
 #[cfg(any(test, feature = "test-utils"))]
