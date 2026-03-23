@@ -21,7 +21,6 @@ alloy-trie = { version = "0.9.4", default-features = false }
 alloy-consensus = { version = "1.7.3", default-features = false }
 alloy-eips = { version = "1.7.3", default-features = false }
 alloy-genesis = { version = "1.7.3", default-features = false }
-op-alloy-consensus = { version = "0.24.0", default-features = false }
 
 # misc
 bytes = { version = "1.11.1", default-features = false }
