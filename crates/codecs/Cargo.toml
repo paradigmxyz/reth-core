@@ -25,6 +25,7 @@ alloy-trie = { workspace = true, optional = true }
 # misc
 bytes.workspace = true
 modular-bitfield.workspace = true
+parity-scale-codec.workspace = true
 visibility = { workspace = true, optional = true }
 serde.workspace = true
 arbitrary = { workspace = true, features = ["derive"], optional = true }
