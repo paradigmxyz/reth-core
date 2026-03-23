@@ -3,6 +3,8 @@
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
+mod scale;
+
 /// Trait that will transform the data to be saved in the DB in a (ideally) compressed format.
 pub trait Compress: Send + Sync + Sized + Debug {
     /// Compressed type.
@@ -105,55 +107,20 @@ impl_compression_for_compact!(Bytes);
 
 #[cfg(feature = "alloy")]
 mod alloy {
-    use alloy_consensus::{
-        transaction::RlpEcdsaEncodableTx, EthereumReceipt, EthereumTxEnvelope, Header, Transaction,
-        TxType,
-    };
+    use alloy_consensus::{EthereumReceipt, EthereumTxEnvelope, Header, TxEip4844, TxType};
     use alloy_genesis::GenesisAccount;
     use alloy_primitives::Log;
     use alloy_trie::BranchNodeCompact;
 
-    use alloc::vec::Vec;
+    type TransactionSigned = EthereumTxEnvelope<TxEip4844>;
 
-    impl_compression_for_compact!(Header, Log, TxType, BranchNodeCompact, GenesisAccount);
-
-    impl<T: core::fmt::Debug + Send + Sync + crate::Compact> crate::Compress for EthereumReceipt<T> {
-        type Compressed = Vec<u8>;
-
-        fn compress_to_buf<B: bytes::BufMut + AsMut<[u8]>>(&self, buf: &mut B) {
-            let _ = crate::Compact::to_compact(self, buf);
-        }
-    }
-
-    impl<T: core::fmt::Debug + Send + Sync + crate::Compact> crate::Decompress for EthereumReceipt<T> {
-        fn decompress(
-            value: &[u8],
-        ) -> Result<Self, alloc::boxed::Box<dyn core::error::Error + Send + Sync>> {
-            let (obj, _) = crate::Compact::from_compact(value, value.len());
-            Ok(obj)
-        }
-    }
-
-    impl<
-            Eip4844: core::fmt::Debug + Send + Sync + crate::Compact + RlpEcdsaEncodableTx + Transaction,
-        > crate::Compress for EthereumTxEnvelope<Eip4844>
-    {
-        type Compressed = Vec<u8>;
-
-        fn compress_to_buf<B: bytes::BufMut + AsMut<[u8]>>(&self, buf: &mut B) {
-            let _ = crate::Compact::to_compact(self, buf);
-        }
-    }
-
-    impl<
-            Eip4844: core::fmt::Debug + Send + Sync + crate::Compact + RlpEcdsaEncodableTx + Transaction,
-        > crate::Decompress for EthereumTxEnvelope<Eip4844>
-    {
-        fn decompress(
-            value: &[u8],
-        ) -> Result<Self, alloc::boxed::Box<dyn core::error::Error + Send + Sync>> {
-            let (obj, _) = crate::Compact::from_compact(value, value.len());
-            Ok(obj)
-        }
-    }
+    impl_compression_for_compact!(
+        Header,
+        Log,
+        TxType,
+        BranchNodeCompact,
+        GenesisAccount,
+        EthereumReceipt<T>,
+        TransactionSigned
+    );
 }

@@ -2039,6 +2039,7 @@ dependencies = [
  "arbitrary",
  "bytes",
  "modular-bitfield",
+ "parity-scale-codec",
  "proptest",
  "proptest-arbitrary-interop",
  "reth-codecs-derive",
