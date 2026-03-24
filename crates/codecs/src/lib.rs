@@ -34,7 +34,7 @@ use alloc::{
 pub mod alloy;
 
 pub mod compress;
-pub use compress::{Compress, Decompress};
+pub use compress::{Compress, Decompress, DecompressError};
 
 pub mod txtype;
 

@@ -17,8 +17,8 @@ macro_rules! impl_compression_for_scale {
             }
 
             impl Decompress for $name {
-                fn decompress(mut value: &[u8]) -> Result<Self, alloc::boxed::Box<dyn core::error::Error + Send + Sync>> {
-                    parity_scale_codec::Decode::decode(&mut value).map_err(Into::into)
+                fn decompress(mut value: &[u8]) -> Result<Self, $crate::DecompressError> {
+                    parity_scale_codec::Decode::decode(&mut value).map_err($crate::DecompressError::new)
                 }
             }
         )+

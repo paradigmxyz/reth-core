@@ -1,9 +1,49 @@
 //! Compression and decompression traits and implementations.
 
-use alloc::vec::Vec;
-use core::fmt::Debug;
+use alloc::{boxed::Box, vec::Vec};
+use alloy_primitives::{Address, Bytes, B256};
+use core::{
+    error::Error,
+    fmt::{self, Debug},
+};
 
 mod scale;
+
+/// Error type returned by [`Decompress`] trait.
+pub struct DecompressError(Box<dyn core::error::Error + Send + Sync>);
+
+impl DecompressError {
+    /// Creates a new `AnyError` wrapping the given error value.
+    pub fn new<E>(error: E) -> Self
+    where
+        E: Error + Send + Sync + 'static,
+    {
+        Self(Box::new(error))
+    }
+
+    /// Returns a reference to the underlying error value.
+    pub fn as_error(&self) -> &(dyn Error + Send + Sync + 'static) {
+        self.0.as_ref()
+    }
+}
+
+impl fmt::Debug for DecompressError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+impl fmt::Display for DecompressError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl Error for DecompressError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.0.source()
+    }
+}
 
 /// Trait that will transform the data to be saved in the DB in a (ideally) compressed format.
 pub trait Compress: Send + Sync + Sized + Debug {
@@ -36,14 +76,10 @@ pub trait Compress: Send + Sync + Sized + Debug {
 /// Trait that will transform the data to be read from the DB.
 pub trait Decompress: Send + Sync + Sized + Debug {
     /// Decompresses data coming from the database.
-    fn decompress(
-        value: &[u8],
-    ) -> Result<Self, alloc::boxed::Box<dyn core::error::Error + Send + Sync>>;
+    fn decompress(value: &[u8]) -> Result<Self, DecompressError>;
 
     /// Decompresses owned data coming from the database.
-    fn decompress_owned(
-        value: Vec<u8>,
-    ) -> Result<Self, alloc::boxed::Box<dyn core::error::Error + Send + Sync>> {
+    fn decompress_owned(value: Vec<u8>) -> Result<Self, DecompressError> {
         Self::decompress(&value)
     }
 }
@@ -62,7 +98,7 @@ macro_rules! impl_compression_for_compact {
             }
 
             impl$(<$($generic: core::fmt::Debug + Send + Sync + $crate::Compact),*>)? $crate::Decompress for $name$(<$($generic),*>)? {
-                fn decompress(value: &[u8]) -> Result<$name$(<$($generic),*>)?, alloc::boxed::Box<dyn core::error::Error + Send + Sync>> {
+                fn decompress(value: &[u8]) -> Result<$name$(<$($generic),*>)?, $crate::DecompressError> {
                     let (obj, _) = $crate::Compact::from_compact(value, value.len());
                     Ok(obj)
                 }
@@ -90,7 +126,7 @@ macro_rules! impl_compression_fixed_compact {
             }
 
             impl $crate::Decompress for $name {
-                fn decompress(value: &[u8]) -> Result<$name, alloc::boxed::Box<dyn core::error::Error + Send + Sync>> {
+                fn decompress(value: &[u8]) -> Result<$name, $crate::DecompressError> {
                     let (obj, _) = $crate::Compact::from_compact(value, value.len());
                     Ok(obj)
                 }
@@ -98,8 +134,6 @@ macro_rules! impl_compression_fixed_compact {
         )+
     };
 }
-
-use alloy_primitives::{Address, Bytes, B256};
 
 impl_compression_fixed_compact!(B256, Address);
 
