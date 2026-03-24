@@ -251,7 +251,7 @@ impl From<Account> for AccountInfo {
     }
 }
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(all(test, feature = "std", feature = "reth-codec"))]
 mod tests {
     use super::*;
     use alloy_primitives::{hex_literal::hex, B256, U256};

@@ -144,7 +144,7 @@ pub use block::{
     Block, FullBlock, RecoveredBlock, SealedBlock,
 };
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(all(test, feature = "std", feature = "reth-codec"))]
 mod withdrawal;
 pub use alloy_eips::eip2718::WithEncoded;
 
@@ -153,7 +153,7 @@ pub mod crypto;
 mod error;
 pub use error::{GotExpected, GotExpectedBoxed};
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(all(test, feature = "std", feature = "reth-codec"))]
 mod log;
 pub use alloy_primitives::{logs_bloom, Log, LogData};
 
