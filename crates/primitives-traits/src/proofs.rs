@@ -17,7 +17,7 @@ pub use alloy_consensus::proofs::calculate_withdrawals_root;
 #[doc(inline)]
 pub use alloy_consensus::proofs::calculate_ommers_root;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use alloy_consensus::EMPTY_ROOT_HASH;
     use alloy_genesis::GenesisAccount;

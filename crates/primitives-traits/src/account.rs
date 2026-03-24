@@ -7,7 +7,7 @@ use derive_more::Deref;
 use revm_bytecode::{Bytecode as RevmBytecode, BytecodeDecodeError};
 use revm_state::AccountInfo;
 
-#[cfg(any(test, feature = "reth-codec"))]
+#[cfg(feature = "reth-codec")]
 /// Identifiers used in [`Compact`](reth_codecs::Compact) encoding of [`Bytecode`].
 pub mod compact_ids {
     /// Identifier for legacy raw bytecode.
@@ -26,9 +26,9 @@ pub mod compact_ids {
 /// An Ethereum account.
 #[cfg_attr(any(test, feature = "serde"), derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-#[cfg_attr(any(test, feature = "arbitrary"), derive(arbitrary::Arbitrary))]
-#[cfg_attr(any(test, feature = "reth-codec"), derive(reth_codecs::Compact))]
-#[cfg_attr(any(test, feature = "reth-codec"), reth_codecs::add_arbitrary_tests(compact))]
+#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
+#[cfg_attr(feature = "reth-codec", derive(reth_codecs::Compact))]
+#[cfg_attr(feature = "reth-codec", reth_codecs::add_arbitrary_tests(compact))]
 pub struct Account {
     /// Account nonce.
     pub nonce: u64,
@@ -133,7 +133,7 @@ impl Bytecode {
     }
 }
 
-#[cfg(any(test, feature = "reth-codec"))]
+#[cfg(feature = "reth-codec")]
 impl reth_codecs::Compact for Bytecode {
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
@@ -251,7 +251,7 @@ impl From<Account> for AccountInfo {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use alloy_primitives::{hex_literal::hex, B256, U256};

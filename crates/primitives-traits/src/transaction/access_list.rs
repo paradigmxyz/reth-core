@@ -1,6 +1,6 @@
 //!  [EIP-2930](https://eips.ethereum.org/EIPS/eip-2930): Access List types
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use alloy_eips::eip2930::{AccessList, AccessListItem};
     use alloy_primitives::{Address, B256};

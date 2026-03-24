@@ -20,7 +20,7 @@ pub type SealedHeaderFor<N> = SealedHeader<<N as NodePrimitives>::BlockHeader>;
 /// [`SealedHeader::hash`] computes the hash if it has not been computed yet.
 #[derive(Debug, Clone, AsRef, Deref)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(any(test, feature = "reth-codec"), reth_codecs::add_arbitrary_tests(rlp))]
+#[cfg_attr(feature = "reth-codec", reth_codecs::add_arbitrary_tests(rlp))]
 pub struct SealedHeader<H = Header> {
     /// Block hash
     #[cfg_attr(feature = "serde", serde(skip))]
