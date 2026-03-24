@@ -6,6 +6,7 @@ rust-version.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
+description = "Derive macro for the Compact codec."
 readme = "../codecs/README.md"
 
 [lints]
