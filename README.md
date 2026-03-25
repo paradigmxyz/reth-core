@@ -6,10 +6,12 @@ Core traits and libraries extracted from [Reth](https://github.com/paradigmxyz/r
 
 - [`reth-codecs`] - `Compact` codec trait, implementations for primitive and alloy types, and the derive macro
 - [`reth-codecs-derive`] - Procedural macro for deriving `Compact` on custom types
+- [`reth-primitives-traits`] - Common types in reth
 - [`reth-zstd-compressors`] - Pre-trained zstd dictionaries for compressing Ethereum data (transactions, headers, receipts)
 
 [`reth-codecs`]: https://github.com/paradigmxyz/reth-core/tree/main/crates/codecs
 [`reth-codecs-derive`]: https://github.com/paradigmxyz/reth-core/tree/main/crates/codecs-derive
+[`reth-primitives-traits`]: https://github.com/paradigmxyz/reth-core/tree/main/crates/primitives-traits
 [`reth-zstd-compressors`]: https://github.com/paradigmxyz/reth-core/tree/main/crates/zstd-compressors
 
 ## Supported Rust Versions (MSRV)
