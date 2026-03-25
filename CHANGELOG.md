@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.1.0) - 2026-03-24
+## [0.1.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.1.0) - 2026-03-25
 
 ### Bug Fixes
 
@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- Add reth-primitives-traits crate ([#4](https://github.com/paradigmxyz/reth-core/issues/4))
 - DecompressError ([#3](https://github.com/paradigmxyz/reth-core/issues/3))
 - .github ([#2](https://github.com/paradigmxyz/reth-core/issues/2))
 - [codecs] Add Compress and Decompress traits
@@ -21,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
+- Release 0.1.0
 - Add cliff.toml
 - Update deny.toml
 - Add crate descriptions
