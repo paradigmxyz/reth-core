@@ -1,0 +1,32 @@
+[package]
+name = "reth-rpc-convert"
+version.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Compatibility traits for converting between consensus and RPC transaction types"
+
+[lints]
+workspace = true
+
+[dependencies]
+# ethereum
+alloy-consensus.workspace = true
+alloy-network.workspace = true
+alloy-primitives.workspace = true
+alloy-rpc-types-eth.workspace = true
+alloy-signer.workspace = true
+
+# error
+thiserror.workspace = true
+
+[features]
+default = ["std"]
+std = [
+    "alloy-consensus/std",
+    "alloy-primitives/std",
+    "alloy-rpc-types-eth/std",
+    "thiserror/std",
+]
