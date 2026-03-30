@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/codecs", "crates/codecs-derive", "crates/primitives-traits", "crates/zstd-compressors"]
+members = ["crates/codecs", "crates/codecs-derive", "crates/primitives-traits", "crates/rpc-traits", "crates/zstd-compressors"]
 resolver = "3"
 
 [workspace.package]
@@ -15,6 +15,7 @@ repository = "https://github.com/paradigmxyz/reth-core"
 reth-codecs = { version = "0.1.0", path = "crates/codecs", default-features = false }
 reth-codecs-derive = { version = "0.1.0", path = "crates/codecs-derive" }
 reth-primitives-traits = { version = "0.1.0", path = "crates/primitives-traits", default-features = false }
+reth-rpc-traits = { version = "0.1.0", path = "crates/rpc-traits", default-features = false }
 reth-zstd-compressors = { version = "0.1.0", path = "crates/zstd-compressors", default-features = false }
 
 # eth/alloy
@@ -24,6 +25,8 @@ alloy-rpc-types-eth = { version = "1.7.3", default-features = false }
 alloy-trie = { version = "0.9.4", default-features = false }
 alloy-consensus = { version = "1.7.3", default-features = false }
 alloy-eips = { version = "1.7.3", default-features = false }
+alloy-network = { version = "1.8.2", default-features = false }
+alloy-signer = { version = "1.8.2", default-features = false }
 alloy-genesis = { version = "1.7.3", default-features = false }
 revm-primitives = { version = "22.1.0", default-features = false }
 revm-bytecode = { version = "9.0.0", default-features = false }
