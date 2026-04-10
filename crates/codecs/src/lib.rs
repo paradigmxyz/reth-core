@@ -189,7 +189,7 @@ impl Compact for NonZeroU64 {
     #[inline]
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
         let (value, buf) = u64::from_compact(buf, len);
-        (NonZeroU64::new(value).expect("compact non-zero integer cannot decode zero"), buf)
+        (Self::new(value).expect("compact non-zero integer cannot decode zero"), buf)
     }
 }
 
@@ -649,7 +649,7 @@ mod tests {
         let mut buf = vec![];
 
         assert_eq!(value.to_compact(&mut buf), 1);
-        assert_eq!(buf, vec![1, 2, 0x12, 0x34]);
+        assert_eq!(buf, vec![2, 0x12, 0x34]);
         assert_eq!(Option::<NonZeroU64>::from_compact(&buf, 1), (value, vec![].as_slice()));
     }
 
