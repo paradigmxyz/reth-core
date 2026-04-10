@@ -29,6 +29,7 @@ use alloc::{
     borrow::{Cow, ToOwned},
     vec::Vec,
 };
+use core::num::NonZeroU64;
 
 #[cfg(feature = "alloy")]
 pub mod alloy;
@@ -175,6 +176,22 @@ macro_rules! impl_uint_compact {
 }
 
 impl_uint_compact!(u8, u64, u128);
+
+impl Compact for NonZeroU64 {
+    #[inline]
+    fn to_compact<B>(&self, buf: &mut B) -> usize
+    where
+        B: bytes::BufMut + AsMut<[u8]>,
+    {
+        self.get().to_compact(buf)
+    }
+
+    #[inline]
+    fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
+        let (value, buf) = u64::from_compact(buf, len);
+        (Self::new(value).expect("compact non-zero integer cannot decode zero"), buf)
+    }
+}
 
 impl<T> Compact for Vec<T>
 where
@@ -531,6 +548,10 @@ mod tests {
     use alloy_primitives::B256;
     use serde::{Deserialize, Serialize};
 
+    fn nz(value: u64) -> NonZeroU64 {
+        NonZeroU64::new(value).expect("test value must be non-zero")
+    }
+
     #[test]
     fn compact_bytes() {
         let arr = [1, 2, 3, 4, 5];
@@ -591,6 +612,18 @@ mod tests {
     }
 
     #[test]
+    fn compact_nonzero_u64() {
+        let value = nz(0x12_34);
+        let mut buf = vec![];
+
+        assert_eq!(value.to_compact(&mut buf), 2);
+        assert_eq!(buf, vec![0x12, 0x34]);
+
+        buf.push(0xaa);
+        assert_eq!(NonZeroU64::from_compact(&buf, 2), (value, vec![0xaa].as_slice()));
+    }
+
+    #[test]
     fn compact_option() {
         let opt = Some(B256::ZERO);
         let mut buf = Vec::with_capacity(1 + 32);
@@ -608,6 +641,16 @@ mod tests {
         assert_eq!(opt.specialized_to_compact(&mut buf), 1);
         assert_eq!(buf.len(), 32);
         assert_eq!(Option::<B256>::specialized_from_compact(&buf, 1), (opt, vec![].as_slice()));
+    }
+
+    #[test]
+    fn compact_option_nonzero_u64() {
+        let value = Some(nz(0x12_34));
+        let mut buf = vec![];
+
+        assert_eq!(value.to_compact(&mut buf), 1);
+        assert_eq!(buf, vec![2, 0x12, 0x34]);
+        assert_eq!(Option::<NonZeroU64>::from_compact(&buf, 1), (value, vec![].as_slice()));
     }
 
     #[test]
