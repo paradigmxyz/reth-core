@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
+- Release 0.2.0
 - [deny] Ignore RUSTSEC-2026-0097 rand advisory ([#11](https://github.com/paradigmxyz/reth-core/issues/11))
 
 ## [0.1.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.1.1) - 2026-04-10
