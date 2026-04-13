@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.2.0) - 2026-04-13
+
+### Dependencies
+
+- Bump alloy deps to 2.0 ([#13](https://github.com/paradigmxyz/reth-core/issues/13))
+
+### Miscellaneous Tasks
+
+- [deny] Ignore RUSTSEC-2026-0097 rand advisory ([#11](https://github.com/paradigmxyz/reth-core/issues/11))
+
 ## [0.1.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.1.1) - 2026-04-10
 
 ### Bug Fixes
@@ -14,20 +24,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Documentation
 
 - Add reth-rpc-traits crate ([#8](https://github.com/paradigmxyz/reth-core/issues/8))
-
-## [0.1.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.1.0) - 2026-03-31
-
-### Bug Fixes
-
-- No_std reth-codecs
-
-### Documentation
-
 - List primitives-traits crate in README ([#5](https://github.com/paradigmxyz/reth-core/issues/5))
 
 ### Features
 
 - Add reth-rpc-traits crate ([#6](https://github.com/paradigmxyz/reth-core/issues/6))
+
+### Miscellaneous Tasks
+
+- Release 0.1.1
+- Release 0.1.0
+
+## [0.1.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.1.0) - 2026-03-25
+
+### Bug Fixes
+
+- No_std reth-codecs
+
+### Features
+
 - Add reth-primitives-traits crate ([#4](https://github.com/paradigmxyz/reth-core/issues/4))
 - DecompressError ([#3](https://github.com/paradigmxyz/reth-core/issues/3))
 - .github ([#2](https://github.com/paradigmxyz/reth-core/issues/2))
@@ -37,7 +52,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Miscellaneous Tasks
 
-- Release 0.1.0
 - Release 0.1.0
 - Release 0.1.0
 - Add cliff.toml
