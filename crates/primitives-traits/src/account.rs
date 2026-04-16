@@ -196,11 +196,15 @@ impl reth_codecs::Compact for Bytecode {
                     // Otherwise, use original_len
                     original_len
                 };
-                Self(RevmBytecode::new_analyzed(
-                    bytes,
-                    original_len,
-                    revm_bytecode::JumpTable::from_slice(buf, jump_table_len),
-                ))
+                // SAFETY: The bytecode, original_len and jump_table were previously
+                // validated and stored via `to_compact`, so the invariants hold.
+                Self(unsafe {
+                    RevmBytecode::new_analyzed(
+                        bytes,
+                        original_len,
+                        revm_bytecode::JumpTable::from_slice(buf, jump_table_len),
+                    )
+                })
             }
             EIP7702_BYTECODE_ID => {
                 // EIP-7702 bytecode objects will be decoded from the raw bytecode
@@ -319,11 +323,14 @@ mod tests {
         assert_eq!(len, 17);
 
         let mut buf = vec![];
-        let bytecode = Bytecode(RevmBytecode::new_analyzed(
-            Bytes::from(&hex!("ff00")),
-            2,
-            JumpTable::from_slice(&[0], 2),
-        ));
+        // SAFETY: test data with valid bytecode, original_len and jump_table.
+        let bytecode = Bytecode(unsafe {
+            RevmBytecode::new_analyzed(
+                Bytes::from(&hex!("ff00")),
+                2,
+                JumpTable::from_slice(&[0], 2),
+            )
+        });
         let len = bytecode.to_compact(&mut buf);
         assert_eq!(len, 16);
 
