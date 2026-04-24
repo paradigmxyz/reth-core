@@ -5,11 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.3.1) - 2026-04-24
+
+### Features
+
+- [primitives-traits] Add missing HeaderMut setters ([#15](https://github.com/paradigmxyz/reth-core/issues/15))
+
+### Miscellaneous Tasks
+
+- Add timestamp into tx info ([#16](https://github.com/paradigmxyz/reth-core/issues/16))
+
 ## [0.3.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.3.0) - 2026-04-14
 
 ### Dependencies
 
 - Bump revm ([#10](https://github.com/paradigmxyz/reth-core/issues/10))
+
+### Miscellaneous Tasks
+
+- Release 0.3.0
 
 ## [0.2.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.2.0) - 2026-04-13
 
