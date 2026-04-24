@@ -796,6 +796,7 @@ mod rpc_compat {
             let base_fee = self.header().base_fee_per_gas();
             let block_length = self.rlp_length();
             let block_hash = Some(self.hash());
+            let block_timestamp = self.header().timestamp();
 
             let (block, senders) = self.split_sealed();
             let (header, body) = block.split_sealed_header_body();
@@ -811,9 +812,9 @@ mod rpc_compat {
                         hash: Some(*tx.tx_hash()),
                         block_hash,
                         block_number: Some(block_number),
+                        block_timestamp: Some(block_timestamp),
                         base_fee,
                         index: Some(idx as u64),
-                        ..Default::default()
                     };
 
                     converter(Recovered::new_unchecked(tx, sender), tx_info)
