@@ -83,6 +83,11 @@ pub trait Block:
         SealedBlock::from_sealed_parts(header, body)
     }
 
+    /// Create a new sealed block instance by cloning a referenced sealed header and block body.
+    fn new_sealed_ref(header: SealedHeader<&Self::Header>, body: &Self::Body) -> SealedBlock<Self> {
+        SealedBlock::from_sealed_parts_ref(header, body)
+    }
+
     /// Seal the block with a known hash.
     ///
     /// WARNING: This method does not perform validation whether the hash is correct.

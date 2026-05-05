@@ -72,8 +72,12 @@ impl<B: Block> SealedBlock<B> {
 
     /// Creates the [`SealedBlock`] from the [`SealedHeader`] and the body.
     pub fn from_sealed_parts(header: SealedHeader<B::Header>, body: B::Body) -> Self {
-        let (header, hash) = header.split();
-        Self::from_parts_unchecked(header, body, hash)
+        Self { header, body }
+    }
+
+    /// Creates the [`SealedBlock`] by cloning the referenced [`SealedHeader`] and body.
+    pub fn from_sealed_parts_ref(header: SealedHeader<&B::Header>, body: &B::Body) -> Self {
+        Self::from_sealed_parts(header.cloned(), body.clone())
     }
 
     /// Returns a reference to the block hash.
@@ -546,5 +550,32 @@ mod tests {
 
         assert_eq!(sealed_block.hash(), hash);
         assert_eq!(sealed_block.header().number, block.header.number);
+    }
+
+    #[test]
+    fn test_sealed_block_from_sealed_parts_ref() {
+        let header = alloy_consensus::Header { number: 7, ..Default::default() };
+        let body = alloy_consensus::BlockBody::<alloy_consensus::TxEnvelope>::default();
+        let hash = header.hash_slow();
+        let sealed_header = SealedHeader::new(header, hash);
+
+        let sealed_block =
+            SealedBlock::<alloy_consensus::Block<alloy_consensus::TxEnvelope>>::from_sealed_parts_ref(
+                sealed_header.sealed_ref(),
+                &body,
+            );
+
+        assert_eq!(sealed_block.hash(), hash);
+        assert_eq!(sealed_block.header().number, 7);
+        assert_eq!(sealed_block.body(), &body);
+
+        let sealed_block = alloy_consensus::Block::<alloy_consensus::TxEnvelope>::new_sealed_ref(
+            sealed_header.sealed_ref(),
+            &body,
+        );
+
+        assert_eq!(sealed_block.hash(), hash);
+        assert_eq!(sealed_block.header().number, 7);
+        assert_eq!(sealed_block.body(), &body);
     }
 }
