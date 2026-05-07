@@ -28,6 +28,9 @@ pub use sealed::SealedBlock;
 pub(crate) mod recovered;
 pub use recovered::RecoveredBlock;
 
+pub mod bal;
+pub use bal::{BlockAccessLists, FullBlockRangeWithOptionalAccessListsResponse};
+
 pub mod body;
 pub mod error;
 pub mod header;

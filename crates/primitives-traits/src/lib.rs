@@ -138,6 +138,7 @@ pub use transaction::{
 
 pub mod block;
 pub use block::{
+    bal::{BlockAccessLists, FullBlockRangeWithOptionalAccessListsResponse},
     body::{BlockBody, FullBlockBody},
     header::{AlloyBlockHeader, BlockHeader, FullBlockHeader},
     recovered::IndexedTx,
