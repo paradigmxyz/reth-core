@@ -406,6 +406,75 @@ impl<B: crate::test_utils::TestBlock> SealedBlock<B> {
     }
 }
 
+/// A [`SealedBlock`] paired with associated data.
+///
+/// This is useful for workflows that need to carry block-adjacent metadata alongside a sealed
+/// block without defining a new wrapper type for each metadata payload.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(
+        serialize = "SealedBlock<B>: serde::Serialize, T: serde::Serialize",
+        deserialize = "SealedBlock<B>: serde::Deserialize<'de>, T: serde::Deserialize<'de>"
+    ))
+)]
+pub struct SealedBlockWith<B: Block, T> {
+    /// The sealed block.
+    block: SealedBlock<B>,
+    /// Associated data for the sealed block.
+    data: T,
+}
+
+impl<B: Block, T> SealedBlockWith<B, T> {
+    /// Creates a new sealed block with associated data.
+    pub const fn new(block: SealedBlock<B>, data: T) -> Self {
+        Self { block, data }
+    }
+
+    /// Returns the sealed block.
+    pub const fn block(&self) -> &SealedBlock<B> {
+        &self.block
+    }
+
+    /// Returns the associated data.
+    pub const fn data(&self) -> &T {
+        &self.data
+    }
+
+    /// Consumes the type and returns its components.
+    #[doc(alias = "into_parts")]
+    pub fn split(self) -> (SealedBlock<B>, T) {
+        (self.block, self.data)
+    }
+}
+
+impl<B: Block, T> SealedBlockWith<B, Option<T>> {
+    /// Creates a sealed block without associated data.
+    pub const fn from_block(block: SealedBlock<B>) -> Self {
+        Self::new(block, None)
+    }
+}
+
+impl<B: Block, T> From<(SealedBlock<B>, T)> for SealedBlockWith<B, T> {
+    fn from((block, data): (SealedBlock<B>, T)) -> Self {
+        Self::new(block, data)
+    }
+}
+
+impl<B: Block, T> From<SealedBlock<B>> for SealedBlockWith<B, Option<T>> {
+    fn from(block: SealedBlock<B>) -> Self {
+        Self::from_block(block)
+    }
+}
+
+impl<B: Block, T: InMemorySize> InMemorySize for SealedBlockWith<B, T> {
+    #[inline]
+    fn size(&self) -> usize {
+        self.block.size() + self.data.size()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -546,5 +615,33 @@ mod tests {
 
         assert_eq!(sealed_block.hash(), hash);
         assert_eq!(sealed_block.header().number, block.header.number);
+    }
+
+    #[test]
+    fn test_sealed_block_with_data() {
+        let block = alloy_consensus::Block::<alloy_consensus::TxEnvelope>::default();
+        let sealed_block = SealedBlock::seal_slow(block);
+
+        let with_data = SealedBlockWith::new(sealed_block.clone(), Some(42u64));
+
+        assert_eq!(with_data.block(), &sealed_block);
+        assert_eq!(with_data.data(), &Some(42));
+
+        let (block, data) = with_data.split();
+        assert_eq!(block, sealed_block);
+        assert_eq!(data, Some(42));
+    }
+
+    #[test]
+    fn test_sealed_block_with_from_block() {
+        let block = alloy_consensus::Block::<alloy_consensus::TxEnvelope>::default();
+        let sealed_block = SealedBlock::seal_slow(block);
+
+        let with_data = SealedBlockWith::<_, Option<u64>>::from_block(sealed_block.clone());
+        assert_eq!(with_data.block(), &sealed_block);
+        assert_eq!(with_data.data(), &None);
+
+        let from_block: SealedBlockWith<_, Option<u64>> = sealed_block.into();
+        assert_eq!(from_block.data(), &None);
     }
 }
