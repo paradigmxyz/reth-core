@@ -12,6 +12,7 @@
 //! - [`Block`] - A basic block with header and body
 //! - [`SealedBlock`] - A block with its hash cached
 //! - [`SealedBlockWith`] - A sealed block paired with associated data
+//! - [`SealedOrRecoveredBlock`] - A sealed block that may retain recovered senders
 //! - [`SealedHeader`] - A header with its hash cached
 //! - [`RecoveredBlock`] - A sealed block with sender addresses recovered
 //!
@@ -142,7 +143,7 @@ pub use block::{
     body::{BlockBody, FullBlockBody},
     header::{AlloyBlockHeader, BlockHeader, FullBlockHeader},
     recovered::IndexedTx,
-    Block, FullBlock, RecoveredBlock, SealedBlock, SealedBlockWith,
+    Block, FullBlock, RecoveredBlock, SealedBlock, SealedBlockWith, SealedOrRecoveredBlock,
 };
 
 #[cfg(all(test, feature = "std", feature = "reth-codec"))]

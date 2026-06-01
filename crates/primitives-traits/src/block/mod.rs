@@ -25,6 +25,9 @@
 pub(crate) mod sealed;
 pub use sealed::{SealedBlock, SealedBlockWith};
 
+pub(crate) mod sealed_or_recovered;
+pub use sealed_or_recovered::SealedOrRecoveredBlock;
+
 pub(crate) mod recovered;
 pub use recovered::RecoveredBlock;
 
