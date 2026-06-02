@@ -110,8 +110,16 @@
 extern crate alloc;
 
 /// Re-export of [`quanta::Instant`] for high-resolution timing with minimal overhead.
-#[cfg(feature = "std")]
+#[cfg(feature = "quanta")]
 pub use quanta::Instant as FastInstant;
+
+/// Fallback to [`std::time::Instant`] when the `quanta` feature is disabled.
+///
+/// This keeps `FastInstant` available for `std` consumers that opt out of
+/// `quanta` or build for targets where `quanta`'s platform timing backend is
+/// unavailable.
+#[cfg(all(feature = "std", not(feature = "quanta")))]
+pub use std::time::Instant as FastInstant;
 
 /// Common constants.
 pub mod constants;
