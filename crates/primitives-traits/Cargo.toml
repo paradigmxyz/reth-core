@@ -67,7 +67,7 @@ serde.workspace = true
 serde_json.workspace = true
 
 [features]
-default = ["std"]
+default = ["std", "quanta"]
 std = [
     "alloy-consensus/std",
     "alloy-eips/std",
@@ -79,7 +79,6 @@ std = [
     "bytes/std",
     "derive_more/std",
     "once_cell/std",
-    "quanta",
     "secp256k1?/std",
     "thiserror/std",
     "alloy-trie/std",
@@ -88,6 +87,7 @@ std = [
     "revm-state/std",
     "alloy-rpc-types-eth?/std",
 ]
+quanta = ["std", "dep:quanta"]
 secp256k1 = ["alloy-consensus/secp256k1"]
 test-utils = [
     "arbitrary",
