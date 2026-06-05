@@ -308,8 +308,11 @@ impl<B: Block> Deref for SealedBlock<B> {
 
 impl<B: Block> Encodable for SealedBlock<B> {
     fn encode(&self, out: &mut dyn BufMut) {
-        // TODO: https://github.com/paradigmxyz/reth/issues/18002
-        self.clone().into_block().encode(out);
+        B::rlp_encode(self.header(), self.body(), out);
+    }
+
+    fn length(&self) -> usize {
+        self.rlp_length()
     }
 }
 
@@ -480,6 +483,42 @@ mod tests {
     use super::*;
     use alloy_rlp::{Decodable, Encodable};
 
+    fn sample_alloy_block() -> alloy_consensus::Block<alloy_consensus::TxEnvelope> {
+        let header = alloy_consensus::Header {
+            number: 42,
+            gas_limit: 30_000_000,
+            gas_used: 21_000,
+            timestamp: 1_000_000,
+            base_fee_per_gas: Some(1_000_000_000),
+            ..Default::default()
+        };
+
+        let tx = alloy_consensus::TxLegacy {
+            chain_id: Some(1),
+            nonce: 0,
+            gas_price: 21_000_000_000,
+            gas_limit: 21_000,
+            to: alloy_primitives::TxKind::Call(Address::ZERO),
+            value: alloy_primitives::U256::from(100),
+            input: alloy_primitives::Bytes::default(),
+        };
+
+        let tx_signed =
+            alloy_consensus::TxEnvelope::Legacy(alloy_consensus::Signed::new_unchecked(
+                tx,
+                alloy_primitives::Signature::test_signature(),
+                B256::ZERO,
+            ));
+
+        let body = alloy_consensus::BlockBody {
+            transactions: vec![tx_signed],
+            ommers: vec![],
+            withdrawals: Some(Default::default()),
+        };
+
+        alloy_consensus::Block::new(header, body)
+    }
+
     #[test]
     fn test_sealed_block_rlp_roundtrip() {
         // Create a sample block using alloy_consensus::Block
@@ -538,6 +577,29 @@ mod tests {
         assert_eq!(sealed_block.header().number, decoded.header().number);
         assert_eq!(sealed_block.header().state_root, decoded.header().state_root);
         assert_eq!(sealed_block.body().transactions.len(), decoded.body().transactions.len());
+    }
+
+    #[test]
+    fn test_alloy_block_sealed_encoding_matches_regular_block() {
+        let block = sample_alloy_block();
+
+        let mut block_encoded = Vec::new();
+        block.encode(&mut block_encoded);
+
+        let mut borrowed_encoded = Vec::new();
+        <alloy_consensus::Block<alloy_consensus::TxEnvelope> as Block>::rlp_encode(
+            &block.header,
+            &block.body,
+            &mut borrowed_encoded,
+        );
+
+        let sealed_block = SealedBlock::seal_slow(block.clone());
+        let mut sealed_encoded = Vec::new();
+        sealed_block.encode(&mut sealed_encoded);
+
+        assert_eq!(borrowed_encoded, block_encoded);
+        assert_eq!(sealed_encoded, block_encoded);
+        assert_eq!(sealed_block.length(), block.length());
     }
 
     #[test]
