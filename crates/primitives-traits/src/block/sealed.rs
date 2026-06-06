@@ -1,8 +1,8 @@
 //! Sealed block types
 
 use crate::{
-    block::{error::BlockRecoveryError, header::BlockHeader, RecoveredBlock},
-    transaction::signed::{RecoveryError, SignedTransaction},
+    block::{error::BlockRecoveryError, RecoveredBlock},
+    transaction::signed::RecoveryError,
     Block, BlockBody, GotExpected, InMemorySize, SealedHeader,
 };
 use alloc::vec::Vec;
@@ -74,6 +74,11 @@ impl<B: Block> SealedBlock<B> {
     pub fn from_sealed_parts(header: SealedHeader<B::Header>, body: B::Body) -> Self {
         let (header, hash) = header.split();
         Self::from_parts_unchecked(header, body, hash)
+    }
+
+    /// Decodes the block from RLP and seals it.
+    pub fn decode_sealed(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
+        B::decode_sealed(buf)
     }
 
     /// Returns a reference to the block hash.
@@ -318,8 +323,7 @@ impl<B: Block> Encodable for SealedBlock<B> {
 
 impl<B: Block> Decodable for SealedBlock<B> {
     fn decode(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
-        let block = B::decode(buf)?;
-        Ok(Self::seal_slow(block))
+        B::decode_sealed(buf)
     }
 }
 
@@ -334,24 +338,6 @@ impl<B: Block> From<Sealed<B>> for SealedBlock<B> {
     fn from(value: Sealed<B>) -> Self {
         let (block, hash) = value.into_parts();
         Self::new_unchecked(block, hash)
-    }
-}
-
-impl<T, H> SealedBlock<alloy_consensus::Block<T, H>>
-where
-    T: Decodable + SignedTransaction,
-    H: BlockHeader,
-{
-    /// Decodes the block from RLP, computing the header hash directly from the RLP bytes.
-    ///
-    /// This is more efficient than decoding and then sealing, as the header hash is computed
-    /// from the raw RLP bytes without re-encoding.
-    ///
-    /// This leverages [`alloy_consensus::Block::decode_sealed`].
-    pub fn decode_sealed(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
-        let sealed = alloy_consensus::Block::<T, H>::decode_sealed(buf)?;
-        let (block, hash) = sealed.into_parts();
-        Ok(Self::new_unchecked(block, hash))
     }
 }
 
