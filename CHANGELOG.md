@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2](https://github.com/paradigmxyz/reth-core/releases/tag/v0.4.2) - 2026-06-07
+
+### Features
+
+- [primitives] Add sealed-or-recovered block wrapper ([#23](https://github.com/paradigmxyz/reth-core/issues/23))
+
+### Performance
+
+- [primitives] Optimize sealed block decoding ([#27](https://github.com/paradigmxyz/reth-core/issues/27))
+
 ## [0.4.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.4.1) - 2026-06-05
 
 ### Bug Fixes
@@ -14,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - [primitives-traits] Make quanta opt-in for FastInstant ([#25](https://github.com/paradigmxyz/reth-core/issues/25))
+
+### Miscellaneous Tasks
+
+- Release 0.4.1
 
 ## [0.4.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.4.0) - 2026-05-21
 
