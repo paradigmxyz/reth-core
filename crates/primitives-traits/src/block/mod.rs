@@ -127,6 +127,16 @@ pub trait Block:
         self.split().1
     }
 
+    /// Encodes the block with the given header and body.
+    fn rlp_encode(
+        header: &Self::Header,
+        body: &Self::Body,
+        out: &mut dyn alloy_rlp::bytes::BufMut,
+    ) {
+        // TODO: https://github.com/paradigmxyz/reth/issues/18002
+        Self::new(header.clone(), body.clone()).encode(out)
+    }
+
     /// Returns the rlp length of the block with the given header and body.
     fn rlp_length(header: &Self::Header, body: &Self::Body) -> usize;
 
@@ -232,6 +242,14 @@ where
 
     fn rlp_length(header: &Self::Header, body: &Self::Body) -> usize {
         Self::rlp_length_for(header, body)
+    }
+
+    fn rlp_encode(
+        header: &Self::Header,
+        body: &Self::Body,
+        out: &mut dyn alloy_rlp::bytes::BufMut,
+    ) {
+        Self::rlp_encode_from_parts(header, body, out)
     }
 
     fn into_ethereum_block(self) -> Self {
