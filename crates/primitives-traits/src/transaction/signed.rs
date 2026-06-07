@@ -49,6 +49,7 @@ pub trait SignedTransaction:
     ///
     /// Some transactions are not broadcastable as objects and only allowed to be broadcasted as
     /// hashes, e.g. because they missing context (e.g. blob sidecar).
+    #[inline]
     fn is_broadcastable_in_full(&self) -> bool {
         // EIP-4844 transactions are not broadcastable in full, only hashes are allowed.
         !self.is_eip4844()
@@ -108,6 +109,7 @@ pub trait SignedTransaction:
     /// Returns the [`Recovered`] transaction with the given sender.
     ///
     /// Note: assumes the given signer is the signer of this transaction.
+    #[inline]
     fn with_signer(self, signer: Address) -> Recovered<Self> {
         Recovered::new_unchecked(self, signer)
     }
@@ -115,6 +117,7 @@ pub trait SignedTransaction:
     /// Returns the [`Recovered`] transaction with the given signer, using a reference to self.
     ///
     /// Note: assumes the given signer is the signer of this transaction.
+    #[inline]
     fn with_signer_ref(&self, signer: Address) -> Recovered<&Self> {
         Recovered::new_unchecked(self, signer)
     }

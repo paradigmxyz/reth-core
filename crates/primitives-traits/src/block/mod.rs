@@ -82,6 +82,7 @@ pub trait Block:
     fn new(header: Self::Header, body: Self::Body) -> Self;
 
     /// Create new a sealed block instance from a sealed header and the block body.
+    #[inline]
     fn new_sealed(header: SealedHeader<Self::Header>, body: Self::Body) -> SealedBlock<Self> {
         SealedBlock::from_sealed_parts(header, body)
     }
@@ -89,11 +90,13 @@ pub trait Block:
     /// Seal the block with a known hash.
     ///
     /// WARNING: This method does not perform validation whether the hash is correct.
+    #[inline]
     fn seal_unchecked(self, hash: B256) -> SealedBlock<Self> {
         SealedBlock::new_unchecked(self, hash)
     }
 
     /// Creates the [`SealedBlock`] from the block's parts without calculating the hash upfront.
+    #[inline]
     fn seal(self) -> SealedBlock<Self> {
         SealedBlock::new_unhashed(self)
     }
@@ -124,16 +127,19 @@ pub trait Block:
     fn split(self) -> (Self::Header, Self::Body);
 
     /// Returns a tuple of references to the block's header and body.
+    #[inline]
     fn split_ref(&self) -> (&Self::Header, &Self::Body) {
         (self.header(), self.body())
     }
 
     /// Consumes the block and returns the header.
+    #[inline]
     fn into_header(self) -> Self::Header {
         self.split().0
     }
 
     /// Consumes the block and returns the body.
+    #[inline]
     fn into_body(self) -> Self::Body {
         self.split().1
     }
@@ -187,6 +193,7 @@ pub trait Block:
     /// Transform the block into a [`RecoveredBlock`] using the given signers.
     ///
     /// Note: This method assumes the signers are correct and does not validate them.
+    #[inline]
     fn into_recovered_with_signers(self, signers: Vec<Address>) -> RecoveredBlock<Self>
     where
         <Self::Body as BlockBody>::Transaction: SignedTransaction,
@@ -219,6 +226,7 @@ pub trait Block:
     /// Note: This conversion can be incomplete. It is not expected that this `Block` is the same as
     /// [`alloy_consensus::Block`] only that it can be converted into it which is useful for
     /// the `eth_` RPC namespace (e.g. RPC block).
+    #[inline]
     fn into_ethereum_block(
         self,
     ) -> alloy_consensus::Block<<Self::Body as BlockBody>::Transaction, Self::Header> {
@@ -235,18 +243,22 @@ where
     type Header = H;
     type Body = alloy_consensus::BlockBody<T, H>;
 
+    #[inline]
     fn new(header: Self::Header, body: Self::Body) -> Self {
         Self { header, body }
     }
 
+    #[inline]
     fn header(&self) -> &Self::Header {
         &self.header
     }
 
+    #[inline]
     fn body(&self) -> &Self::Body {
         &self.body
     }
 
+    #[inline]
     fn split(self) -> (Self::Header, Self::Body) {
         (self.header, self.body)
     }
@@ -267,6 +279,7 @@ where
         Self::decode_sealed(buf).map(Into::into)
     }
 
+    #[inline]
     fn into_ethereum_block(self) -> Self {
         self
     }
@@ -287,26 +300,31 @@ pub trait TestBlock: Block<Header: crate::test_utils::TestHeader> {
     fn set_header(&mut self, header: Self::Header);
 
     /// Updates the parent block hash.
+    #[inline]
     fn set_parent_hash(&mut self, hash: alloy_primitives::BlockHash) {
         crate::header::test_utils::TestHeader::set_parent_hash(self.header_mut(), hash);
     }
 
     /// Updates the block number.
+    #[inline]
     fn set_block_number(&mut self, number: alloy_primitives::BlockNumber) {
         crate::header::test_utils::TestHeader::set_block_number(self.header_mut(), number);
     }
 
     /// Updates the block timestamp.
+    #[inline]
     fn set_timestamp(&mut self, timestamp: u64) {
         crate::header::test_utils::TestHeader::set_timestamp(self.header_mut(), timestamp);
     }
 
     /// Updates the block state root.
+    #[inline]
     fn set_state_root(&mut self, state_root: alloy_primitives::B256) {
         crate::header::test_utils::TestHeader::set_state_root(self.header_mut(), state_root);
     }
 
     /// Updates the block difficulty.
+    #[inline]
     fn set_difficulty(&mut self, difficulty: alloy_primitives::U256) {
         crate::header::test_utils::TestHeader::set_difficulty(self.header_mut(), difficulty);
     }
@@ -318,14 +336,17 @@ where
     T: SignedTransaction,
     H: crate::test_utils::TestHeader,
 {
+    #[inline]
     fn body_mut(&mut self) -> &mut Self::Body {
         &mut self.body
     }
 
+    #[inline]
     fn header_mut(&mut self) -> &mut Self::Header {
         &mut self.header
     }
 
+    #[inline]
     fn set_header(&mut self, header: Self::Header) {
         self.header = header
     }
