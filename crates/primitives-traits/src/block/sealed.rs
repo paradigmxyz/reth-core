@@ -31,6 +31,7 @@ impl<B: Block> SealedBlock<B> {
     ///
     /// This calculates the header hash. To create a [`SealedBlock`] without calculating the hash
     /// upfront see [`SealedBlock::new_unhashed`]
+    #[inline]
     pub fn seal_slow(block: B) -> Self {
         let hash = block.header().hash_slow();
         Self::new_unchecked(block, hash)
@@ -46,6 +47,7 @@ impl<B: Block> SealedBlock<B> {
     }
 
     /// Creates a `SealedBlock` from the block without the available hash
+    #[inline]
     pub fn new_unhashed(block: B) -> Self {
         let (header, body) = block.split();
         Self { header: SealedHeader::new_unhashed(header), body }
@@ -56,27 +58,32 @@ impl<B: Block> SealedBlock<B> {
     ///
     /// This calculates the header hash. To create a [`SealedBlock`] from its parts without
     /// calculating the hash upfront see [`SealedBlock::from_parts_unhashed`]
+    #[inline]
     pub fn seal_parts(header: B::Header, body: B::Body) -> Self {
         Self::seal_slow(B::new(header, body))
     }
 
     /// Creates the [`SealedBlock`] from the block's parts without calculating the hash upfront.
+    #[inline]
     pub fn from_parts_unhashed(header: B::Header, body: B::Body) -> Self {
         Self::new_unhashed(B::new(header, body))
     }
 
     /// Creates the [`SealedBlock`] from the block's parts.
+    #[inline]
     pub fn from_parts_unchecked(header: B::Header, body: B::Body, hash: BlockHash) -> Self {
         Self::new_unchecked(B::new(header, body), hash)
     }
 
     /// Creates the [`SealedBlock`] from the [`SealedHeader`] and the body.
+    #[inline]
     pub fn from_sealed_parts(header: SealedHeader<B::Header>, body: B::Body) -> Self {
         let (header, hash) = header.split();
         Self::from_parts_unchecked(header, body, hash)
     }
 
     /// Decodes the block from RLP and seals it.
+    #[inline]
     pub fn decode_sealed(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
         B::decode_sealed(buf)
     }
@@ -95,23 +102,27 @@ impl<B: Block> SealedBlock<B> {
 
     /// Consumes the type and returns its components.
     #[doc(alias = "into_components")]
+    #[inline]
     pub fn split(self) -> (B, BlockHash) {
         let (header, hash) = self.header.split();
         (B::new(header, self.body), hash)
     }
 
     /// Consumes the type and returns the block.
+    #[inline]
     pub fn into_block(self) -> B {
         self.unseal()
     }
 
     /// Consumes the type and returns the block.
+    #[inline]
     pub fn unseal(self) -> B {
         let header = self.header.unseal();
         B::new(header, self.body)
     }
 
     /// Clones the wrapped block.
+    #[inline]
     pub fn clone_block(&self) -> B {
         B::new(self.header.clone_header(), self.body.clone())
     }
@@ -119,6 +130,7 @@ impl<B: Block> SealedBlock<B> {
     /// Converts this block into a [`RecoveredBlock`] with the given senders
     ///
     /// Note: This method assumes the senders are correct and does not validate them.
+    #[inline]
     pub const fn with_senders(self, senders: Vec<Address>) -> RecoveredBlock<B> {
         RecoveredBlock::new_sealed(self, senders)
     }
@@ -130,6 +142,7 @@ impl<B: Block> SealedBlock<B> {
     /// to recover the senders.
     ///
     /// Returns an error if any of the transactions fail to recover the sender.
+    #[inline]
     pub fn try_with_senders(
         self,
         senders: Vec<Address>,
@@ -144,6 +157,7 @@ impl<B: Block> SealedBlock<B> {
     /// to recover the senders.
     ///
     /// Returns an error if any of the transactions fail to recover the sender.
+    #[inline]
     pub fn try_with_senders_unchecked(
         self,
         senders: Vec<Address>,
@@ -155,6 +169,7 @@ impl<B: Block> SealedBlock<B> {
     /// [`SignedTransaction::recover_signer`](crate::transaction::signed::SignedTransaction).
     ///
     /// Returns an error if any of the transactions fail to recover the sender.
+    #[inline]
     pub fn try_recover(self) -> Result<RecoveredBlock<B>, BlockRecoveryError<Self>> {
         RecoveredBlock::try_recover_sealed(self)
     }
@@ -163,21 +178,25 @@ impl<B: Block> SealedBlock<B> {
     /// [`SignedTransaction::recover_signer_unchecked`](crate::transaction::signed::SignedTransaction).
     ///
     /// Returns an error if any of the transactions fail to recover the sender.
+    #[inline]
     pub fn try_recover_unchecked(self) -> Result<RecoveredBlock<B>, BlockRecoveryError<Self>> {
         RecoveredBlock::try_recover_sealed_unchecked(self)
     }
 
     /// Returns reference to block header.
+    #[inline]
     pub const fn header(&self) -> &B::Header {
         self.header.header()
     }
 
     /// Returns reference to block body.
+    #[inline]
     pub const fn body(&self) -> &B::Body {
         &self.body
     }
 
     /// Returns the length of the block.
+    #[inline]
     pub fn rlp_length(&self) -> usize {
         B::rlp_length(self.header(), self.body())
     }
@@ -185,51 +204,61 @@ impl<B: Block> SealedBlock<B> {
     /// Recovers all senders from the transactions in the block.
     ///
     /// Returns an error if any of the transactions fail to recover the sender.
+    #[inline]
     pub fn senders(&self) -> Result<Vec<Address>, RecoveryError> {
         self.body().recover_signers()
     }
 
     /// Return the number hash tuple.
+    #[inline]
     pub fn num_hash(&self) -> BlockNumHash {
         BlockNumHash::new(self.number(), self.hash())
     }
 
     /// Return a [`BlockWithParent`] for this header.
+    #[inline]
     pub fn block_with_parent(&self) -> BlockWithParent {
         BlockWithParent { parent: self.parent_hash(), block: self.num_hash() }
     }
 
     /// Returns the Sealed header.
+    #[inline]
     pub const fn sealed_header(&self) -> &SealedHeader<B::Header> {
         &self.header
     }
 
     /// Returns the wrapped `SealedHeader<B::Header>` as `SealedHeader<&B::Header>`.
+    #[inline]
     pub fn sealed_header_ref(&self) -> SealedHeader<&B::Header> {
         SealedHeader::new(self.header(), self.hash())
     }
 
     /// Clones the wrapped header and returns a [`SealedHeader`] sealed with the hash.
+    #[inline]
     pub fn clone_sealed_header(&self) -> SealedHeader<B::Header> {
         self.header.clone()
     }
 
     /// Consumes the block and returns the sealed header.
+    #[inline]
     pub fn into_sealed_header(self) -> SealedHeader<B::Header> {
         self.header
     }
 
     /// Consumes the block and returns the header.
+    #[inline]
     pub fn into_header(self) -> B::Header {
         self.header.unseal()
     }
 
     /// Consumes the block and returns the body.
+    #[inline]
     pub fn into_body(self) -> B::Body {
         self.body
     }
 
     /// Splits the block into body and header into separate components
+    #[inline]
     pub fn split_header_body(self) -> (B::Header, B::Body) {
         let header = self.header.unseal();
         (header, self.body)
@@ -282,6 +311,7 @@ impl<B> From<B> for SealedBlock<B>
 where
     B: Block,
 {
+    #[inline]
     fn from(block: B) -> Self {
         Self::seal_slow(block)
     }
@@ -291,6 +321,7 @@ impl<B> Default for SealedBlock<B>
 where
     B: Block + Default,
 {
+    #[inline]
     fn default() -> Self {
         Self::seal_slow(Default::default())
     }
@@ -306,28 +337,33 @@ impl<B: Block> InMemorySize for SealedBlock<B> {
 impl<B: Block> Deref for SealedBlock<B> {
     type Target = B::Header;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.header()
     }
 }
 
 impl<B: Block> Encodable for SealedBlock<B> {
+    #[inline]
     fn encode(&self, out: &mut dyn BufMut) {
         B::rlp_encode(self.header(), self.body(), out);
     }
 
+    #[inline]
     fn length(&self) -> usize {
         self.rlp_length()
     }
 }
 
 impl<B: Block> Decodable for SealedBlock<B> {
+    #[inline]
     fn decode(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
         B::decode_sealed(buf)
     }
 }
 
 impl<B: Block> From<SealedBlock<B>> for Sealed<B> {
+    #[inline]
     fn from(value: SealedBlock<B>) -> Self {
         let (block, hash) = value.split();
         Self::new_unchecked(block, hash)
@@ -335,6 +371,7 @@ impl<B: Block> From<SealedBlock<B>> for Sealed<B> {
 }
 
 impl<B: Block> From<Sealed<B>> for SealedBlock<B> {
+    #[inline]
     fn from(value: Sealed<B>) -> Self {
         let (block, hash) = value.into_parts();
         Self::new_unchecked(block, hash)
@@ -355,41 +392,49 @@ where
 #[cfg(any(test, feature = "test-utils"))]
 impl<B: crate::test_utils::TestBlock> SealedBlock<B> {
     /// Returns a mutable reference to the header.
+    #[inline]
     pub const fn header_mut(&mut self) -> &mut B::Header {
         self.header.header_mut()
     }
 
     /// Updates the block hash.
+    #[inline]
     pub fn set_hash(&mut self, hash: BlockHash) {
         self.header.set_hash(hash)
     }
 
     /// Returns a mutable reference to the body.
+    #[inline]
     pub const fn body_mut(&mut self) -> &mut B::Body {
         &mut self.body
     }
 
     /// Updates the parent block hash.
+    #[inline]
     pub fn set_parent_hash(&mut self, hash: BlockHash) {
         self.header.set_parent_hash(hash)
     }
 
     /// Updates the block number.
+    #[inline]
     pub fn set_block_number(&mut self, number: alloy_primitives::BlockNumber) {
         self.header.set_block_number(number)
     }
 
     /// Updates the block timestamp.
+    #[inline]
     pub fn set_timestamp(&mut self, timestamp: u64) {
         self.header.set_timestamp(timestamp)
     }
 
     /// Updates the block state root.
+    #[inline]
     pub fn set_state_root(&mut self, state_root: alloy_primitives::B256) {
         self.header.set_state_root(state_root)
     }
 
     /// Updates the block difficulty.
+    #[inline]
     pub fn set_difficulty(&mut self, difficulty: alloy_primitives::U256) {
         self.header.set_difficulty(difficulty)
     }
@@ -417,22 +462,26 @@ pub struct SealedBlockWith<B: Block, T> {
 
 impl<B: Block, T> SealedBlockWith<B, T> {
     /// Creates a new sealed block with associated data.
+    #[inline]
     pub const fn new(block: SealedBlock<B>, data: T) -> Self {
         Self { block, data }
     }
 
     /// Returns the sealed block.
+    #[inline]
     pub const fn block(&self) -> &SealedBlock<B> {
         &self.block
     }
 
     /// Returns the associated data.
+    #[inline]
     pub const fn data(&self) -> &T {
         &self.data
     }
 
     /// Consumes the type and returns its components.
     #[doc(alias = "into_parts")]
+    #[inline]
     pub fn split(self) -> (SealedBlock<B>, T) {
         (self.block, self.data)
     }
@@ -440,18 +489,21 @@ impl<B: Block, T> SealedBlockWith<B, T> {
 
 impl<B: Block, T> SealedBlockWith<B, Option<T>> {
     /// Creates a sealed block without associated data.
+    #[inline]
     pub const fn from_block(block: SealedBlock<B>) -> Self {
         Self::new(block, None)
     }
 }
 
 impl<B: Block, T> From<(SealedBlock<B>, T)> for SealedBlockWith<B, T> {
+    #[inline]
     fn from((block, data): (SealedBlock<B>, T)) -> Self {
         Self::new(block, data)
     }
 }
 
 impl<B: Block, T> From<SealedBlock<B>> for SealedBlockWith<B, Option<T>> {
+    #[inline]
     fn from(block: SealedBlock<B>) -> Self {
         Self::from_block(block)
     }

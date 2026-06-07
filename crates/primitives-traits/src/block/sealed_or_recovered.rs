@@ -21,26 +21,31 @@ pub enum SealedOrRecoveredBlock<B: Block> {
 
 impl<B: Block> SealedOrRecoveredBlock<B> {
     /// Creates a [`SealedOrRecoveredBlock`] from a sealed block.
+    #[inline]
     pub fn sealed(block: SealedBlock<B>) -> Self {
         Self::Sealed(Arc::new(block))
     }
 
     /// Creates a [`SealedOrRecoveredBlock`] from a shared sealed block.
+    #[inline]
     pub const fn sealed_arc(block: Arc<SealedBlock<B>>) -> Self {
         Self::Sealed(block)
     }
 
     /// Creates a [`SealedOrRecoveredBlock`] from a recovered block.
+    #[inline]
     pub fn recovered(block: RecoveredBlock<B>) -> Self {
         Self::Recovered(Arc::new(block))
     }
 
     /// Creates a [`SealedOrRecoveredBlock`] from a shared recovered block.
+    #[inline]
     pub const fn recovered_arc(block: Arc<RecoveredBlock<B>>) -> Self {
         Self::Recovered(block)
     }
 
     /// Returns the sealed block view.
+    #[inline]
     pub fn sealed_block(&self) -> &SealedBlock<B> {
         match self {
             Self::Sealed(block) => block,
@@ -49,6 +54,7 @@ impl<B: Block> SealedOrRecoveredBlock<B> {
     }
 
     /// Returns the recovered block if this block has recovered senders.
+    #[inline]
     pub fn recovered_block(&self) -> Option<&RecoveredBlock<B>> {
         match self {
             Self::Sealed(_) => None,
@@ -57,6 +63,7 @@ impl<B: Block> SealedOrRecoveredBlock<B> {
     }
 
     /// Consumes this block and returns the sealed block.
+    #[inline]
     pub fn into_sealed_block(self) -> SealedBlock<B> {
         match self {
             Self::Sealed(block) => Arc::unwrap_or_clone(block),
@@ -69,6 +76,7 @@ impl<B: Block> SealedOrRecoveredBlock<B> {
 
     /// Consumes this block and returns the recovered block, recovering sealed-only blocks if
     /// needed.
+    #[inline]
     pub fn into_recovered_block(self) -> Result<RecoveredBlock<B>, SealedBlockRecoveryError<B>> {
         match self {
             Self::Sealed(block) => Arc::unwrap_or_clone(block).try_recover(),
@@ -78,24 +86,28 @@ impl<B: Block> SealedOrRecoveredBlock<B> {
 }
 
 impl<B: Block> From<SealedBlock<B>> for SealedOrRecoveredBlock<B> {
+    #[inline]
     fn from(block: SealedBlock<B>) -> Self {
         Self::sealed(block)
     }
 }
 
 impl<B: Block> From<Arc<SealedBlock<B>>> for SealedOrRecoveredBlock<B> {
+    #[inline]
     fn from(block: Arc<SealedBlock<B>>) -> Self {
         Self::sealed_arc(block)
     }
 }
 
 impl<B: Block> From<RecoveredBlock<B>> for SealedOrRecoveredBlock<B> {
+    #[inline]
     fn from(block: RecoveredBlock<B>) -> Self {
         Self::recovered(block)
     }
 }
 
 impl<B: Block> From<Arc<RecoveredBlock<B>>> for SealedOrRecoveredBlock<B> {
+    #[inline]
     fn from(block: Arc<RecoveredBlock<B>>) -> Self {
         Self::recovered_arc(block)
     }
@@ -104,6 +116,7 @@ impl<B: Block> From<Arc<RecoveredBlock<B>>> for SealedOrRecoveredBlock<B> {
 impl<B: Block> Deref for SealedOrRecoveredBlock<B> {
     type Target = SealedBlock<B>;
 
+    #[inline]
     fn deref(&self) -> &Self::Target {
         self.sealed_block()
     }
@@ -115,6 +128,7 @@ where
     B: Block,
     SealedBlock<B>: serde::Serialize,
 {
+    #[inline]
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         self.sealed_block().serialize(serializer)
     }
@@ -126,6 +140,7 @@ where
     B: Block,
     SealedBlock<B>: serde::Deserialize<'de>,
 {
+    #[inline]
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         SealedBlock::<B>::deserialize(deserializer).map(Self::sealed)
     }

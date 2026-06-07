@@ -51,6 +51,7 @@ impl<H> SealedHeader<H> {
     }
 
     /// Clone the header.
+    #[inline]
     pub fn clone_header(&self) -> H
     where
         H: Clone,
@@ -59,16 +60,19 @@ impl<H> SealedHeader<H> {
     }
 
     /// Consumes the type and returns the wrapped header.
+    #[inline]
     pub fn into_header(self) -> H {
         self.header
     }
 
     /// Consumes the type and returns the wrapped header.
+    #[inline]
     pub fn unseal(self) -> H {
         self.header
     }
 
     /// Converts from &`SealedHeader<H>` to `SealedHeader<&H>`.
+    #[inline]
     pub fn sealed_ref(&self) -> SealedHeader<&H> {
         SealedHeader { hash: self.hash.clone(), header: &self.header }
     }
@@ -76,6 +80,7 @@ impl<H> SealedHeader<H> {
 
 impl<H: Sealable> SealedHeader<H> {
     /// Hashes the header and creates a sealed header.
+    #[inline]
     pub fn seal_slow(header: H) -> Self {
         let hash = header.hash_slow();
         Self::new(header, hash)
@@ -85,22 +90,26 @@ impl<H: Sealable> SealedHeader<H> {
     ///
     /// Note: if the hash has not been computed yet, this will compute the hash:
     /// [`Sealable::hash_slow`].
+    #[inline]
     pub fn hash_ref(&self) -> &BlockHash {
         self.hash.get_or_init(|| self.header.hash_slow())
     }
 
     /// Returns a copy of the block hash.
+    #[inline]
     pub fn hash(&self) -> BlockHash {
         *self.hash_ref()
     }
 
     /// This is the inverse of [`Self::seal_slow`] which returns the raw header and hash.
+    #[inline]
     pub fn split(self) -> (H, BlockHash) {
         let hash = self.hash();
         (self.header, hash)
     }
 
     /// Returns references to both the header and hash without taking ownership.
+    #[inline]
     pub fn split_ref(&self) -> (&H, &BlockHash) {
         (self.header(), self.hash_ref())
     }
@@ -108,6 +117,7 @@ impl<H: Sealable> SealedHeader<H> {
 
 impl<H: Sealable> SealedHeader<&H> {
     /// Maps a `SealedHeader<&H>` to a `SealedHeader<H>` by cloning the header.
+    #[inline]
     pub fn cloned(self) -> SealedHeader<H>
     where
         H: Clone,
@@ -119,11 +129,13 @@ impl<H: Sealable> SealedHeader<&H> {
 
 impl<H: alloy_consensus::BlockHeader + Sealable> SealedHeader<H> {
     /// Return the number hash tuple.
+    #[inline]
     pub fn num_hash(&self) -> BlockNumHash {
         BlockNumHash::new(self.number(), self.hash())
     }
 
     /// Return a [`BlockWithParent`] for this header.
+    #[inline]
     pub fn block_with_parent(&self) -> BlockWithParent {
         BlockWithParent { parent: self.parent_hash(), block: self.num_hash() }
     }
@@ -132,12 +144,14 @@ impl<H: alloy_consensus::BlockHeader + Sealable> SealedHeader<H> {
 impl<H: Sealable> Eq for SealedHeader<H> {}
 
 impl<H: Sealable> PartialEq for SealedHeader<H> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.hash() == other.hash()
     }
 }
 
 impl<H: Sealable> core::hash::Hash for SealedHeader<H> {
+    #[inline]
     fn hash<Ha: core::hash::Hasher>(&self, state: &mut Ha) {
         self.hash().hash(state)
     }
@@ -152,12 +166,14 @@ impl<H: InMemorySize> InMemorySize for SealedHeader<H> {
 }
 
 impl<H: Sealable + Default> Default for SealedHeader<H> {
+    #[inline]
     fn default() -> Self {
         Self::seal_slow(H::default())
     }
 }
 
 impl Encodable for SealedHeader {
+    #[inline]
     fn encode(&self, out: &mut dyn BufMut) {
         self.header.encode(out);
     }
@@ -183,6 +199,7 @@ impl Decodable for SealedHeader {
 }
 
 impl<H: Sealable> From<SealedHeader<H>> for Sealed<H> {
+    #[inline]
     fn from(value: SealedHeader<H>) -> Self {
         let (header, hash) = value.split();
         Self::new_unchecked(header, hash)
@@ -204,41 +221,49 @@ where
 #[cfg(any(test, feature = "test-utils"))]
 impl<H: crate::test_utils::TestHeader> SealedHeader<H> {
     /// Updates the block header.
+    #[inline]
     pub fn set_header(&mut self, header: H) {
         self.header = header
     }
 
     /// Updates the block hash.
+    #[inline]
     pub fn set_hash(&mut self, hash: BlockHash) {
         self.hash = hash.into()
     }
 
     /// Returns a mutable reference to the header.
+    #[inline]
     pub const fn header_mut(&mut self) -> &mut H {
         &mut self.header
     }
 
     /// Updates the parent block hash.
+    #[inline]
     pub fn set_parent_hash(&mut self, hash: BlockHash) {
         self.header.set_parent_hash(hash);
     }
 
     /// Updates the block number.
+    #[inline]
     pub fn set_block_number(&mut self, number: alloy_primitives::BlockNumber) {
         self.header.set_block_number(number);
     }
 
     /// Updates the block timestamp.
+    #[inline]
     pub fn set_timestamp(&mut self, timestamp: u64) {
         self.header.set_timestamp(timestamp);
     }
 
     /// Updates the block state root.
+    #[inline]
     pub fn set_state_root(&mut self, state_root: alloy_primitives::B256) {
         self.header.set_state_root(state_root);
     }
 
     /// Updates the block difficulty.
+    #[inline]
     pub fn set_difficulty(&mut self, difficulty: alloy_primitives::U256) {
         self.header.set_difficulty(difficulty);
     }
@@ -252,6 +277,7 @@ mod rpc_compat {
         /// Converts this header into `alloy_rpc_types_eth::Header<H>`.
         ///
         /// Note: This does not set the total difficulty or size of the block.
+        #[inline]
         pub fn into_rpc_header(self) -> alloy_rpc_types_eth::Header<H>
         where
             H: Sealable,
@@ -260,12 +286,14 @@ mod rpc_compat {
         }
 
         /// Converts an `alloy_rpc_types_eth::Header<H>` into a `SealedHeader<H>`.
+        #[inline]
         pub fn from_rpc_header(header: alloy_rpc_types_eth::Header<H>) -> Self {
             Self::new(header.inner, header.hash)
         }
     }
 
     impl<H> From<alloy_rpc_types_eth::Header<H>> for SealedHeader<H> {
+        #[inline]
         fn from(value: alloy_rpc_types_eth::Header<H>) -> Self {
             Self::from_rpc_header(value)
         }
