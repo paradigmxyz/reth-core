@@ -31,7 +31,6 @@ impl<B: Block> SealedBlock<B> {
     ///
     /// This calculates the header hash. To create a [`SealedBlock`] without calculating the hash
     /// upfront see [`SealedBlock::new_unhashed`]
-    #[inline]
     pub fn seal_slow(block: B) -> Self {
         let hash = block.header().hash_slow();
         Self::new_unchecked(block, hash)
@@ -58,7 +57,6 @@ impl<B: Block> SealedBlock<B> {
     ///
     /// This calculates the header hash. To create a [`SealedBlock`] from its parts without
     /// calculating the hash upfront see [`SealedBlock::from_parts_unhashed`]
-    #[inline]
     pub fn seal_parts(header: B::Header, body: B::Body) -> Self {
         Self::seal_slow(B::new(header, body))
     }
@@ -83,7 +81,6 @@ impl<B: Block> SealedBlock<B> {
     }
 
     /// Decodes the block from RLP and seals it.
-    #[inline]
     pub fn decode_sealed(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
         B::decode_sealed(buf)
     }
@@ -122,7 +119,6 @@ impl<B: Block> SealedBlock<B> {
     }
 
     /// Clones the wrapped block.
-    #[inline]
     pub fn clone_block(&self) -> B {
         B::new(self.header.clone_header(), self.body.clone())
     }
@@ -142,7 +138,6 @@ impl<B: Block> SealedBlock<B> {
     /// to recover the senders.
     ///
     /// Returns an error if any of the transactions fail to recover the sender.
-    #[inline]
     pub fn try_with_senders(
         self,
         senders: Vec<Address>,
@@ -157,7 +152,6 @@ impl<B: Block> SealedBlock<B> {
     /// to recover the senders.
     ///
     /// Returns an error if any of the transactions fail to recover the sender.
-    #[inline]
     pub fn try_with_senders_unchecked(
         self,
         senders: Vec<Address>,
@@ -169,7 +163,6 @@ impl<B: Block> SealedBlock<B> {
     /// [`SignedTransaction::recover_signer`](crate::transaction::signed::SignedTransaction).
     ///
     /// Returns an error if any of the transactions fail to recover the sender.
-    #[inline]
     pub fn try_recover(self) -> Result<RecoveredBlock<B>, BlockRecoveryError<Self>> {
         RecoveredBlock::try_recover_sealed(self)
     }
@@ -178,7 +171,6 @@ impl<B: Block> SealedBlock<B> {
     /// [`SignedTransaction::recover_signer_unchecked`](crate::transaction::signed::SignedTransaction).
     ///
     /// Returns an error if any of the transactions fail to recover the sender.
-    #[inline]
     pub fn try_recover_unchecked(self) -> Result<RecoveredBlock<B>, BlockRecoveryError<Self>> {
         RecoveredBlock::try_recover_sealed_unchecked(self)
     }
@@ -196,7 +188,6 @@ impl<B: Block> SealedBlock<B> {
     }
 
     /// Returns the length of the block.
-    #[inline]
     pub fn rlp_length(&self) -> usize {
         B::rlp_length(self.header(), self.body())
     }
@@ -204,7 +195,6 @@ impl<B: Block> SealedBlock<B> {
     /// Recovers all senders from the transactions in the block.
     ///
     /// Returns an error if any of the transactions fail to recover the sender.
-    #[inline]
     pub fn senders(&self) -> Result<Vec<Address>, RecoveryError> {
         self.body().recover_signers()
     }
@@ -234,7 +224,6 @@ impl<B: Block> SealedBlock<B> {
     }
 
     /// Clones the wrapped header and returns a [`SealedHeader`] sealed with the hash.
-    #[inline]
     pub fn clone_sealed_header(&self) -> SealedHeader<B::Header> {
         self.header.clone()
     }
@@ -344,19 +333,16 @@ impl<B: Block> Deref for SealedBlock<B> {
 }
 
 impl<B: Block> Encodable for SealedBlock<B> {
-    #[inline]
     fn encode(&self, out: &mut dyn BufMut) {
         B::rlp_encode(self.header(), self.body(), out);
     }
 
-    #[inline]
     fn length(&self) -> usize {
         self.rlp_length()
     }
 }
 
 impl<B: Block> Decodable for SealedBlock<B> {
-    #[inline]
     fn decode(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
         B::decode_sealed(buf)
     }

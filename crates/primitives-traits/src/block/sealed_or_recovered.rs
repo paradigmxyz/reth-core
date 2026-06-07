@@ -63,7 +63,6 @@ impl<B: Block> SealedOrRecoveredBlock<B> {
     }
 
     /// Consumes this block and returns the sealed block.
-    #[inline]
     pub fn into_sealed_block(self) -> SealedBlock<B> {
         match self {
             Self::Sealed(block) => Arc::unwrap_or_clone(block),
@@ -76,7 +75,6 @@ impl<B: Block> SealedOrRecoveredBlock<B> {
 
     /// Consumes this block and returns the recovered block, recovering sealed-only blocks if
     /// needed.
-    #[inline]
     pub fn into_recovered_block(self) -> Result<RecoveredBlock<B>, SealedBlockRecoveryError<B>> {
         match self {
             Self::Sealed(block) => Arc::unwrap_or_clone(block).try_recover(),

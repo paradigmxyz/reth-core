@@ -102,7 +102,6 @@ pub trait Block:
     }
 
     /// Calculate the header hash and seal the block so that it can't be changed.
-    #[inline]
     fn seal_slow(self) -> SealedBlock<Self> {
         SealedBlock::seal_slow(self)
     }
@@ -264,12 +263,10 @@ where
         (self.header, self.body)
     }
 
-    #[inline]
     fn rlp_length(header: &Self::Header, body: &Self::Body) -> usize {
         Self::rlp_length_for(header, body)
     }
 
-    #[inline]
     fn rlp_encode(
         header: &Self::Header,
         body: &Self::Body,
@@ -278,7 +275,6 @@ where
         Self::rlp_encode_from_parts(header, body, out)
     }
 
-    #[inline]
     fn decode_sealed(buf: &mut &[u8]) -> alloy_rlp::Result<SealedBlock<Self>> {
         Self::decode_sealed(buf).map(Into::into)
     }

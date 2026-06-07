@@ -67,7 +67,6 @@ pub trait BlockBody:
     /// Returns the transaction with the matching hash.
     ///
     /// This is a convenience function for `transactions_iter().find()`
-    #[inline]
     fn transaction_by_hash(&self, hash: &B256) -> Option<&Self::Transaction> {
         self.transactions_iter().find(|tx| tx.tx_hash() == hash)
     }
@@ -75,7 +74,6 @@ pub trait BlockBody:
     /// Returns true if the block body contains a transaction with the given hash.
     ///
     /// This is a convenience function for `transaction_by_hash().is_some()`
-    #[inline]
     fn contains_transaction(&self, hash: &B256) -> bool {
         self.transaction_by_hash(hash).is_some()
     }
@@ -83,7 +81,6 @@ pub trait BlockBody:
     /// Clones the transactions in the block.
     ///
     /// This is a convenience function for `transactions().to_vec()`
-    #[inline]
     fn clone_transactions(&self) -> Vec<Self::Transaction> {
         self.transactions().to_vec()
     }
@@ -104,7 +101,6 @@ pub trait BlockBody:
     fn into_transactions(self) -> Vec<Self::Transaction>;
 
     /// Returns `true` if the block body contains a transaction of the given type.
-    #[inline]
     fn contains_transaction_type(&self, tx_type: u8) -> bool {
         self.transactions_iter().any(|tx| tx.is_type(tx_type))
     }
@@ -176,7 +172,6 @@ pub trait BlockBody:
     /// Recover signer addresses for all transactions in the block body.
     ///
     /// Returns an error if some transaction's signature is invalid.
-    #[inline]
     fn try_recover_signers(&self) -> Result<Vec<Address>, RecoveryError> {
         self.recover_signers()
     }
@@ -193,7 +188,6 @@ pub trait BlockBody:
     /// signature has a low `s` value_.
     ///
     /// Returns an error if some transaction's signature is invalid.
-    #[inline]
     fn try_recover_signers_unchecked(&self) -> Result<Vec<Address>, RecoveryError> {
         self.recover_signers_unchecked()
     }

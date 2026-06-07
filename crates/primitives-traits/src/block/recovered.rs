@@ -250,43 +250,36 @@ impl<B: Block> RecoveredBlock<B> {
     }
 
     /// Returns the block hash.
-    #[inline]
     pub fn hash_ref(&self) -> &BlockHash {
         self.block.hash_ref()
     }
 
     /// Returns a copy of the block hash.
-    #[inline]
     pub fn hash(&self) -> BlockHash {
         *self.hash_ref()
     }
 
     /// Return the number hash tuple.
-    #[inline]
     pub fn num_hash(&self) -> BlockNumHash {
         BlockNumHash::new(self.header().number(), self.hash())
     }
 
     /// Return a [`BlockWithParent`] for this header.
-    #[inline]
     pub fn block_with_parent(&self) -> BlockWithParent {
         BlockWithParent { parent: self.header().parent_hash(), block: self.num_hash() }
     }
 
     /// Clone the header.
-    #[inline]
     pub fn clone_header(&self) -> B::Header {
         self.header().clone()
     }
 
     /// Clones the internal header and returns a [`SealedHeader`] sealed with the hash.
-    #[inline]
     pub fn clone_sealed_header(&self) -> SealedHeader<B::Header> {
         SealedHeader::new(self.clone_header(), self.hash())
     }
 
     /// Clones the wrapped block and returns the [`SealedBlock`] sealed with the hash.
-    #[inline]
     pub fn clone_sealed_block(&self) -> SealedBlock<B> {
         self.block.clone()
     }
@@ -508,7 +501,6 @@ impl<B: Block> BlockHeader for RecoveredBlock<B> {
 impl<B: Block> Eq for RecoveredBlock<B> {}
 
 impl<B: Block> PartialEq for RecoveredBlock<B> {
-    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.block.eq(&other.block) && self.senders.eq(&other.senders)
     }
@@ -699,7 +691,6 @@ impl<'a, B: Block> IndexedTx<'a, B> {
     }
 
     /// Returns the block hash.
-    #[inline]
     pub fn block_hash(&self) -> B256 {
         self.block.hash()
     }

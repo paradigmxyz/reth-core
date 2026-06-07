@@ -58,7 +58,6 @@ pub trait SignedTransaction:
     /// Recover signer from signature and hash.
     ///
     /// Returns an error if the transaction's signature is invalid.
-    #[inline]
     fn try_recover(&self) -> Result<Address, RecoveryError> {
         self.recover_signer()
     }
@@ -67,26 +66,22 @@ pub trait SignedTransaction:
     /// value_.
     ///
     /// Returns an error if the transaction's signature is invalid.
-    #[inline]
     fn try_recover_unchecked(&self) -> Result<Address, RecoveryError> {
         self.recover_signer_unchecked()
     }
 
     /// Calculate transaction hash, eip2728 transaction does not contain rlp header and start with
     /// tx type.
-    #[inline]
     fn recalculate_hash(&self) -> B256 {
         keccak256(self.encoded_2718())
     }
 
     /// Tries to recover signer and return [`Recovered`] by cloning the type.
-    #[inline]
     fn try_clone_into_recovered(&self) -> Result<Recovered<Self>, RecoveryError> {
         self.recover_signer().map(|signer| Recovered::new_unchecked(self.clone(), signer))
     }
 
     /// Tries to recover signer and return [`Recovered`] by cloning the type.
-    #[inline]
     fn try_clone_into_recovered_unchecked(&self) -> Result<Recovered<Self>, RecoveryError> {
         self.recover_signer_unchecked().map(|signer| Recovered::new_unchecked(self.clone(), signer))
     }
@@ -95,7 +90,6 @@ pub trait SignedTransaction:
     ///
     /// Returns `Err(Self)` if the transaction's signature is invalid, see also
     /// [`SignerRecoverable::recover_signer`].
-    #[inline]
     fn try_into_recovered(self) -> Result<Recovered<Self>, Self> {
         match self.recover_signer() {
             Ok(signer) => Ok(Recovered::new_unchecked(self, signer)),
@@ -108,7 +102,6 @@ pub trait SignedTransaction:
     ///
     /// Returns `RecoveryError` if the transaction's signature is invalid.
     #[deprecated(note = "Use try_into_recovered_unchecked instead")]
-    #[inline]
     fn into_recovered_unchecked(self) -> Result<Recovered<Self>, RecoveryError> {
         self.recover_signer_unchecked().map(|signer| Recovered::new_unchecked(self, signer))
     }

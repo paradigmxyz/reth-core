@@ -51,7 +51,6 @@ impl<H> SealedHeader<H> {
     }
 
     /// Clone the header.
-    #[inline]
     pub fn clone_header(&self) -> H
     where
         H: Clone,
@@ -80,7 +79,6 @@ impl<H> SealedHeader<H> {
 
 impl<H: Sealable> SealedHeader<H> {
     /// Hashes the header and creates a sealed header.
-    #[inline]
     pub fn seal_slow(header: H) -> Self {
         let hash = header.hash_slow();
         Self::new(header, hash)
@@ -90,26 +88,22 @@ impl<H: Sealable> SealedHeader<H> {
     ///
     /// Note: if the hash has not been computed yet, this will compute the hash:
     /// [`Sealable::hash_slow`].
-    #[inline]
     pub fn hash_ref(&self) -> &BlockHash {
         self.hash.get_or_init(|| self.header.hash_slow())
     }
 
     /// Returns a copy of the block hash.
-    #[inline]
     pub fn hash(&self) -> BlockHash {
         *self.hash_ref()
     }
 
     /// This is the inverse of [`Self::seal_slow`] which returns the raw header and hash.
-    #[inline]
     pub fn split(self) -> (H, BlockHash) {
         let hash = self.hash();
         (self.header, hash)
     }
 
     /// Returns references to both the header and hash without taking ownership.
-    #[inline]
     pub fn split_ref(&self) -> (&H, &BlockHash) {
         (self.header(), self.hash_ref())
     }
@@ -117,7 +111,6 @@ impl<H: Sealable> SealedHeader<H> {
 
 impl<H: Sealable> SealedHeader<&H> {
     /// Maps a `SealedHeader<&H>` to a `SealedHeader<H>` by cloning the header.
-    #[inline]
     pub fn cloned(self) -> SealedHeader<H>
     where
         H: Clone,
@@ -129,13 +122,11 @@ impl<H: Sealable> SealedHeader<&H> {
 
 impl<H: alloy_consensus::BlockHeader + Sealable> SealedHeader<H> {
     /// Return the number hash tuple.
-    #[inline]
     pub fn num_hash(&self) -> BlockNumHash {
         BlockNumHash::new(self.number(), self.hash())
     }
 
     /// Return a [`BlockWithParent`] for this header.
-    #[inline]
     pub fn block_with_parent(&self) -> BlockWithParent {
         BlockWithParent { parent: self.parent_hash(), block: self.num_hash() }
     }
@@ -144,14 +135,12 @@ impl<H: alloy_consensus::BlockHeader + Sealable> SealedHeader<H> {
 impl<H: Sealable> Eq for SealedHeader<H> {}
 
 impl<H: Sealable> PartialEq for SealedHeader<H> {
-    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.hash() == other.hash()
     }
 }
 
 impl<H: Sealable> core::hash::Hash for SealedHeader<H> {
-    #[inline]
     fn hash<Ha: core::hash::Hasher>(&self, state: &mut Ha) {
         self.hash().hash(state)
     }
@@ -166,14 +155,12 @@ impl<H: InMemorySize> InMemorySize for SealedHeader<H> {
 }
 
 impl<H: Sealable + Default> Default for SealedHeader<H> {
-    #[inline]
     fn default() -> Self {
         Self::seal_slow(H::default())
     }
 }
 
 impl Encodable for SealedHeader {
-    #[inline]
     fn encode(&self, out: &mut dyn BufMut) {
         self.header.encode(out);
     }
@@ -199,7 +186,6 @@ impl Decodable for SealedHeader {
 }
 
 impl<H: Sealable> From<SealedHeader<H>> for Sealed<H> {
-    #[inline]
     fn from(value: SealedHeader<H>) -> Self {
         let (header, hash) = value.split();
         Self::new_unchecked(header, hash)
