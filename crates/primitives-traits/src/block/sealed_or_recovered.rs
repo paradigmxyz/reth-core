@@ -134,6 +134,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::vec::Vec;
     use alloy_consensus::{Block as AlloyBlock, Header, TxEnvelope};
 
     type TestBlock = AlloyBlock<TxEnvelope, Header>;
