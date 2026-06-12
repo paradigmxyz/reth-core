@@ -130,6 +130,14 @@ impl<H: alloy_consensus::BlockHeader + Sealable> SealedHeader<H> {
     pub fn block_with_parent(&self) -> BlockWithParent {
         BlockWithParent { parent: self.parent_hash(), block: self.num_hash() }
     }
+
+    /// Returns this header's block hash when the header commits to a block access list.
+    ///
+    /// The returned hash identifies the block access list data for this block. Returns `None` for
+    /// headers without a `block_access_list_hash`.
+    pub fn block_hash_if_block_access_list(&self) -> Option<BlockHash> {
+        self.block_access_list_hash().is_some().then(|| self.hash())
+    }
 }
 
 impl<H: Sealable> Eq for SealedHeader<H> {}
@@ -283,5 +291,28 @@ mod rpc_compat {
         fn from(value: alloy_rpc_types_eth::Header<H>) -> Self {
             Self::from_rpc_header(value)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloy_primitives::B256;
+
+    #[test]
+    fn block_hash_if_block_access_list_returns_hash_when_header_has_bal_hash() {
+        let hash = B256::with_last_byte(1);
+        let header = Header { block_access_list_hash: Some(B256::ZERO), ..Default::default() };
+        let sealed = SealedHeader::new(header, hash);
+
+        assert_eq!(sealed.block_hash_if_block_access_list(), Some(hash));
+    }
+
+    #[test]
+    fn block_hash_if_block_access_list_returns_none_without_bal_hash() {
+        let hash = B256::with_last_byte(1);
+        let sealed = SealedHeader::new(Header::default(), hash);
+
+        assert_eq!(sealed.block_hash_if_block_access_list(), None);
     }
 }
