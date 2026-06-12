@@ -5,11 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.5.0) - 2026-06-12
+
+### Dependencies
+
+- Bump revm crates to 41.0.0 ([#31](https://github.com/paradigmxyz/reth-core/issues/31))
+
+### Features
+
+- [primitives] Add block hash if block access list helper ([#29](https://github.com/paradigmxyz/reth-core/issues/29))
+
+### Other
+
+- Allow proc-macro-error2 advisory ([#30](https://github.com/paradigmxyz/reth-core/issues/30))
+
+### Refactor
+
+- [primitives] Inline primitives trait helpers ([#28](https://github.com/paradigmxyz/reth-core/issues/28))
+
 ## [0.4.2](https://github.com/paradigmxyz/reth-core/releases/tag/v0.4.2) - 2026-06-07
 
 ### Features
 
 - [primitives] Add sealed-or-recovered block wrapper ([#23](https://github.com/paradigmxyz/reth-core/issues/23))
+
+### Miscellaneous Tasks
+
+- Release 0.4.2
 
 ### Performance
 
