@@ -502,6 +502,15 @@ impl<B: Block, T: InMemorySize> InMemorySize for SealedBlockWith<B, T> {
     }
 }
 
+impl<B: Block, T> Deref for SealedBlockWith<B, T> {
+    type Target = SealedBlock<B>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.block()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -710,6 +719,8 @@ mod tests {
 
         let with_data = SealedBlockWith::new(sealed_block.clone(), Some(42u64));
 
+        assert_eq!(&*with_data, &sealed_block);
+        assert_eq!(with_data.hash(), sealed_block.hash());
         assert_eq!(with_data.block(), &sealed_block);
         assert_eq!(with_data.data(), &Some(42));
 
