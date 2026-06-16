@@ -69,7 +69,6 @@ pub enum InvalidTransactionError {
 impl InvalidTransactionError {
     /// Returns true if this is [`InvalidTransactionError::NonceNotConsistent`] and the
     /// transaction's nonce is lower than the state's.
-    #[inline]
     pub fn is_nonce_too_low(&self) -> bool {
         match self {
             Self::NonceNotConsistent { tx, state } => tx < state,

@@ -28,7 +28,6 @@ pub struct StorageEntry {
 
 impl StorageEntry {
     /// Create a new `StorageEntry` with given key and value.
-    #[inline]
     pub const fn new(key: B256, value: U256) -> Self {
         Self { key, value }
     }
@@ -37,14 +36,12 @@ impl StorageEntry {
 impl ValueWithSubKey for StorageEntry {
     type SubKey = B256;
 
-    #[inline]
     fn get_subkey(&self) -> Self::SubKey {
         self.key
     }
 }
 
 impl From<(B256, U256)> for StorageEntry {
-    #[inline]
     fn from((key, value): (B256, U256)) -> Self {
         Self { key, value }
     }

@@ -66,7 +66,6 @@ impl<B: Block> RecoveredBlock<B> {
     /// hash.
     ///
     /// Note: This expects that the given senders match the transactions in the block.
-    #[inline]
     pub fn new(block: B, senders: Vec<Address>, hash: BlockHash) -> Self {
         Self { block: SealedBlock::new_unchecked(block, hash), senders }
     }
@@ -74,38 +73,32 @@ impl<B: Block> RecoveredBlock<B> {
     /// Creates a new recovered block instance with the given senders as provided.
     ///
     /// Note: This expects that the given senders match the transactions in the block.
-    #[inline]
     pub fn new_unhashed(block: B, senders: Vec<Address>) -> Self {
         Self { block: SealedBlock::new_unhashed(block), senders }
     }
 
     /// Returns the recovered senders.
-    #[inline]
     pub fn senders(&self) -> &[Address] {
         &self.senders
     }
 
     /// Returns an iterator over the recovered senders.
-    #[inline]
     pub fn senders_iter(&self) -> impl Iterator<Item = &Address> {
         self.senders.iter()
     }
 
     /// Consumes the type and returns the inner block.
-    #[inline]
     pub fn into_block(self) -> B {
         self.block.into_block()
     }
 
     /// Returns a reference to the sealed block.
-    #[inline]
     pub const fn sealed_block(&self) -> &SealedBlock<B> {
         &self.block
     }
 
     /// Creates a new recovered block instance with the given [`SealedBlock`] and senders as
     /// provided
-    #[inline]
     pub const fn new_sealed(block: SealedBlock<B>, senders: Vec<Address>) -> Self {
         Self { block, senders }
     }
@@ -285,38 +278,32 @@ impl<B: Block> RecoveredBlock<B> {
     }
 
     /// Consumes the block and returns the block's header.
-    #[inline]
     pub fn into_header(self) -> B::Header {
         self.block.into_header()
     }
 
     /// Consumes the block and returns the block's body.
-    #[inline]
     pub fn into_body(self) -> B::Body {
         self.block.into_body()
     }
 
     /// Consumes the block and returns the [`SealedBlock`] and drops the recovered senders.
-    #[inline]
     pub fn into_sealed_block(self) -> SealedBlock<B> {
         self.block
     }
 
     /// Consumes the type and returns its components.
-    #[inline]
     pub fn split_sealed(self) -> (SealedBlock<B>, Vec<Address>) {
         (self.block, self.senders)
     }
 
     /// Consumes the type and returns its components.
     #[doc(alias = "into_components")]
-    #[inline]
     pub fn split(self) -> (B, Vec<Address>) {
         (self.block.into_block(), self.senders)
     }
 
     /// Returns the `Recovered<&T>` transaction at the given index.
-    #[inline]
     pub fn recovered_transaction(
         &self,
         idx: usize,
@@ -382,117 +369,94 @@ impl<B: Block> RecoveredBlock<B> {
 }
 
 impl<B: Block> BlockHeader for RecoveredBlock<B> {
-    #[inline]
     fn parent_hash(&self) -> B256 {
         self.header().parent_hash()
     }
 
-    #[inline]
     fn ommers_hash(&self) -> B256 {
         self.header().ommers_hash()
     }
 
-    #[inline]
     fn beneficiary(&self) -> Address {
         self.header().beneficiary()
     }
 
-    #[inline]
     fn state_root(&self) -> B256 {
         self.header().state_root()
     }
 
-    #[inline]
     fn transactions_root(&self) -> B256 {
         self.header().transactions_root()
     }
 
-    #[inline]
     fn receipts_root(&self) -> B256 {
         self.header().receipts_root()
     }
 
-    #[inline]
     fn withdrawals_root(&self) -> Option<B256> {
         self.header().withdrawals_root()
     }
 
-    #[inline]
     fn logs_bloom(&self) -> Bloom {
         self.header().logs_bloom()
     }
 
-    #[inline]
     fn difficulty(&self) -> U256 {
         self.header().difficulty()
     }
 
-    #[inline]
     fn number(&self) -> BlockNumber {
         self.header().number()
     }
 
-    #[inline]
     fn gas_limit(&self) -> u64 {
         self.header().gas_limit()
     }
 
-    #[inline]
     fn gas_used(&self) -> u64 {
         self.header().gas_used()
     }
 
-    #[inline]
     fn timestamp(&self) -> u64 {
         self.header().timestamp()
     }
 
-    #[inline]
     fn mix_hash(&self) -> Option<B256> {
         self.header().mix_hash()
     }
 
-    #[inline]
     fn nonce(&self) -> Option<B64> {
         self.header().nonce()
     }
 
-    #[inline]
     fn base_fee_per_gas(&self) -> Option<u64> {
         self.header().base_fee_per_gas()
     }
 
-    #[inline]
     fn blob_gas_used(&self) -> Option<u64> {
         self.header().blob_gas_used()
     }
 
-    #[inline]
     fn excess_blob_gas(&self) -> Option<u64> {
         self.header().excess_blob_gas()
     }
 
-    #[inline]
     fn parent_beacon_block_root(&self) -> Option<B256> {
         self.header().parent_beacon_block_root()
     }
 
-    #[inline]
     fn requests_hash(&self) -> Option<B256> {
         self.header().requests_hash()
     }
 
-    #[inline]
     fn block_access_list_hash(&self) -> Option<B256> {
         self.header().block_access_list_hash()
     }
 
-    #[inline]
     fn slot_number(&self) -> Option<u64> {
         self.header().slot_number()
     }
 
-    #[inline]
     fn extra_data(&self) -> &Bytes {
         self.header().extra_data()
     }
@@ -521,7 +485,6 @@ impl<B: Block> InMemorySize for RecoveredBlock<B> {
 }
 
 impl<B: Block> From<RecoveredBlock<B>> for Sealed<B> {
-    #[inline]
     fn from(value: RecoveredBlock<B>) -> Self {
         value.block.into()
     }
@@ -579,13 +542,11 @@ where
 #[cfg(any(test, feature = "test-utils"))]
 impl<B: Block> RecoveredBlock<B> {
     /// Returns a mutable reference to the recovered senders.
-    #[inline]
     pub const fn senders_mut(&mut self) -> &mut Vec<Address> {
         &mut self.senders
     }
 
     /// Appends the sender to the list of senders.
-    #[inline]
     pub fn push_sender(&mut self, sender: Address) {
         self.senders.push(sender);
     }
@@ -596,7 +557,6 @@ impl<B> core::ops::DerefMut for RecoveredBlock<B>
 where
     B: Block,
 {
-    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.block
     }
@@ -605,55 +565,46 @@ where
 #[cfg(any(test, feature = "test-utils"))]
 impl<B: crate::test_utils::TestBlock> RecoveredBlock<B> {
     /// Updates the block header.
-    #[inline]
     pub fn set_header(&mut self, header: B::Header) {
         *self.header_mut() = header
     }
 
     /// Updates the block hash.
-    #[inline]
     pub fn set_hash(&mut self, hash: BlockHash) {
         self.block.set_hash(hash)
     }
 
     /// Returns a mutable reference to the header.
-    #[inline]
     pub const fn header_mut(&mut self) -> &mut B::Header {
         self.block.header_mut()
     }
 
     /// Returns a mutable reference to the body.
-    #[inline]
     pub const fn block_mut(&mut self) -> &mut B::Body {
         self.block.body_mut()
     }
 
     /// Updates the parent block hash.
-    #[inline]
     pub fn set_parent_hash(&mut self, hash: BlockHash) {
         self.block.set_parent_hash(hash);
     }
 
     /// Updates the block number.
-    #[inline]
     pub fn set_block_number(&mut self, number: alloy_primitives::BlockNumber) {
         self.block.set_block_number(number);
     }
 
     /// Updates the block timestamp.
-    #[inline]
     pub fn set_timestamp(&mut self, timestamp: u64) {
         self.block.set_timestamp(timestamp);
     }
 
     /// Updates the block state root.
-    #[inline]
     pub fn set_state_root(&mut self, state_root: alloy_primitives::B256) {
         self.block.set_state_root(state_root);
     }
 
     /// Updates the block difficulty.
-    #[inline]
     pub fn set_difficulty(&mut self, difficulty: alloy_primitives::U256) {
         self.block.set_difficulty(difficulty);
     }
@@ -672,20 +623,17 @@ pub struct IndexedTx<'a, B: Block> {
 
 impl<'a, B: Block> IndexedTx<'a, B> {
     /// Returns the transaction.
-    #[inline]
     pub const fn tx(&self) -> &<B::Body as BlockBody>::Transaction {
         self.tx
     }
 
     /// Returns the recovered transaction with the sender.
-    #[inline]
     pub fn recovered_tx(&self) -> Recovered<&<B::Body as BlockBody>::Transaction> {
         let sender = self.block.senders[self.index];
         Recovered::new_unchecked(self.tx, sender)
     }
 
     /// Returns the transaction hash.
-    #[inline]
     pub fn tx_hash(&self) -> TxHash {
         self.tx.trie_hash()
     }
@@ -696,7 +644,6 @@ impl<'a, B: Block> IndexedTx<'a, B> {
     }
 
     /// Returns the index of the transaction in the block.
-    #[inline]
     pub const fn index(&self) -> usize {
         self.index
     }

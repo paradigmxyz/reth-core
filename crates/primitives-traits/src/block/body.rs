@@ -59,7 +59,6 @@ pub trait BlockBody:
         -> alloy_consensus::BlockBody<Self::Transaction, Self::OmmerHeader>;
 
     /// Returns an iterator over the transactions in the block.
-    #[inline]
     fn transactions_iter(&self) -> impl Iterator<Item = &Self::Transaction> + '_ {
         self.transactions().iter()
     }
@@ -86,13 +85,11 @@ pub trait BlockBody:
     }
 
     /// Returns an iterator over all transaction hashes in the block body.
-    #[inline]
     fn transaction_hashes_iter(&self) -> impl Iterator<Item = &B256> + '_ {
         self.transactions_iter().map(|tx| tx.tx_hash())
     }
 
     /// Returns the number of the transactions in the block.
-    #[inline]
     fn transaction_count(&self) -> usize {
         self.transactions().len()
     }
@@ -138,7 +135,6 @@ pub trait BlockBody:
     }
 
     /// Returns an iterator over all blob versioned hashes in the block body.
-    #[inline]
     fn blob_versioned_hashes_iter(&self) -> impl Iterator<Item = &B256> + '_ {
         self.transactions_iter().filter_map(|tx| tx.blob_versioned_hashes()).flatten()
     }
@@ -149,7 +145,6 @@ pub trait BlockBody:
     ///
     /// See also [`Encodable2718`].
     #[doc(alias = "raw_transactions_iter")]
-    #[inline]
     fn encoded_2718_transactions_iter(&self) -> impl Iterator<Item = Vec<u8>> + '_ {
         self.transactions_iter().map(|tx| tx.encoded_2718())
     }
@@ -254,27 +249,22 @@ where
     type Transaction = T;
     type OmmerHeader = H;
 
-    #[inline]
     fn transactions(&self) -> &[Self::Transaction] {
         &self.transactions
     }
 
-    #[inline]
     fn into_ethereum_body(self) -> Self {
         self
     }
 
-    #[inline]
     fn into_transactions(self) -> Vec<Self::Transaction> {
         self.transactions
     }
 
-    #[inline]
     fn withdrawals(&self) -> Option<&Withdrawals> {
         self.withdrawals.as_ref()
     }
 
-    #[inline]
     fn ommers(&self) -> Option<&[Self::OmmerHeader]> {
         Some(&self.ommers)
     }

@@ -47,13 +47,11 @@ pub struct BlockRecoveryError<T>(pub T);
 
 impl<T> BlockRecoveryError<T> {
     /// Create a new error.
-    #[inline]
     pub const fn new(inner: T) -> Self {
         Self(inner)
     }
 
     /// Unwrap the error and return the original value.
-    #[inline]
     pub fn into_inner(self) -> T {
         self.0
     }
@@ -63,7 +61,6 @@ impl<T> From<BlockRecoveryError<T>> for RecoveryError
 where
     T: core::fmt::Debug + Send + Sync + 'static,
 {
-    #[inline]
     fn from(err: BlockRecoveryError<T>) -> Self {
         Self::from_source(err)
     }

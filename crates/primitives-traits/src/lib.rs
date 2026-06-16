@@ -12,7 +12,6 @@
 //! - [`Block`] - A basic block with header and body
 //! - [`SealedBlock`] - A block with its hash cached
 //! - [`SealedBlockWith`] - A sealed block paired with associated data
-//! - [`SealedOrRecoveredBlock`] - A sealed block that may retain recovered senders
 //! - [`SealedHeader`] - A header with its hash cached
 //! - [`RecoveredBlock`] - A sealed block with sender addresses recovered
 //!
@@ -112,16 +111,8 @@
 extern crate alloc;
 
 /// Re-export of [`quanta::Instant`] for high-resolution timing with minimal overhead.
-#[cfg(feature = "quanta")]
+#[cfg(feature = "std")]
 pub use quanta::Instant as FastInstant;
-
-/// Fallback to [`std::time::Instant`] when the `quanta` feature is disabled.
-///
-/// This keeps `FastInstant` available for `std` consumers that opt out of
-/// `quanta` or build for targets where `quanta`'s platform timing backend is
-/// unavailable.
-#[cfg(all(feature = "std", not(feature = "quanta")))]
-pub use std::time::Instant as FastInstant;
 
 /// Common constants.
 pub mod constants;
@@ -151,7 +142,7 @@ pub use block::{
     body::{BlockBody, FullBlockBody},
     header::{AlloyBlockHeader, BlockHeader, FullBlockHeader},
     recovered::IndexedTx,
-    Block, FullBlock, RecoveredBlock, SealedBlock, SealedBlockWith, SealedOrRecoveredBlock,
+    Block, FullBlock, RecoveredBlock, SealedBlock, SealedBlockWith,
 };
 
 #[cfg(all(test, feature = "std", feature = "reth-codec"))]
