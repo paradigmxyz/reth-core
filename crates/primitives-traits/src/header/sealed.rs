@@ -59,16 +59,19 @@ impl<H> SealedHeader<H> {
     }
 
     /// Consumes the type and returns the wrapped header.
+    #[inline]
     pub fn into_header(self) -> H {
         self.header
     }
 
     /// Consumes the type and returns the wrapped header.
+    #[inline]
     pub fn unseal(self) -> H {
         self.header
     }
 
     /// Converts from &`SealedHeader<H>` to `SealedHeader<&H>`.
+    #[inline]
     pub fn sealed_ref(&self) -> SealedHeader<&H> {
         SealedHeader { hash: self.hash.clone(), header: &self.header }
     }
@@ -204,41 +207,49 @@ where
 #[cfg(any(test, feature = "test-utils"))]
 impl<H: crate::test_utils::TestHeader> SealedHeader<H> {
     /// Updates the block header.
+    #[inline]
     pub fn set_header(&mut self, header: H) {
         self.header = header
     }
 
     /// Updates the block hash.
+    #[inline]
     pub fn set_hash(&mut self, hash: BlockHash) {
         self.hash = hash.into()
     }
 
     /// Returns a mutable reference to the header.
+    #[inline]
     pub const fn header_mut(&mut self) -> &mut H {
         &mut self.header
     }
 
     /// Updates the parent block hash.
+    #[inline]
     pub fn set_parent_hash(&mut self, hash: BlockHash) {
         self.header.set_parent_hash(hash);
     }
 
     /// Updates the block number.
+    #[inline]
     pub fn set_block_number(&mut self, number: alloy_primitives::BlockNumber) {
         self.header.set_block_number(number);
     }
 
     /// Updates the block timestamp.
+    #[inline]
     pub fn set_timestamp(&mut self, timestamp: u64) {
         self.header.set_timestamp(timestamp);
     }
 
     /// Updates the block state root.
+    #[inline]
     pub fn set_state_root(&mut self, state_root: alloy_primitives::B256) {
         self.header.set_state_root(state_root);
     }
 
     /// Updates the block difficulty.
+    #[inline]
     pub fn set_difficulty(&mut self, difficulty: alloy_primitives::U256) {
         self.header.set_difficulty(difficulty);
     }
@@ -252,6 +263,7 @@ mod rpc_compat {
         /// Converts this header into `alloy_rpc_types_eth::Header<H>`.
         ///
         /// Note: This does not set the total difficulty or size of the block.
+        #[inline]
         pub fn into_rpc_header(self) -> alloy_rpc_types_eth::Header<H>
         where
             H: Sealable,
@@ -260,12 +272,14 @@ mod rpc_compat {
         }
 
         /// Converts an `alloy_rpc_types_eth::Header<H>` into a `SealedHeader<H>`.
+        #[inline]
         pub fn from_rpc_header(header: alloy_rpc_types_eth::Header<H>) -> Self {
             Self::new(header.inner, header.hash)
         }
     }
 
     impl<H> From<alloy_rpc_types_eth::Header<H>> for SealedHeader<H> {
+        #[inline]
         fn from(value: alloy_rpc_types_eth::Header<H>) -> Self {
             Self::from_rpc_header(value)
         }

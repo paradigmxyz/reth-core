@@ -39,12 +39,14 @@ pub struct Account {
 
 impl Account {
     /// Whether the account has bytecode.
+    #[inline]
     pub const fn has_bytecode(&self) -> bool {
         self.bytecode_hash.is_some()
     }
 
     /// After `SpuriousDragon` empty account is defined as account with nonce == 0 && balance == 0
     /// && bytecode = None (or hash is [`KECCAK_EMPTY`]).
+    #[inline]
     pub fn is_empty(&self) -> bool {
         self.nonce == 0 &&
             self.balance.is_zero() &&
@@ -53,11 +55,13 @@ impl Account {
 
     /// Returns an account bytecode's hash.
     /// In case of no bytecode, returns [`KECCAK_EMPTY`].
+    #[inline]
     pub fn get_bytecode_hash(&self) -> B256 {
         self.bytecode_hash.unwrap_or(KECCAK_EMPTY)
     }
 
     /// Converts the account into a trie account with the given storage root.
+    #[inline]
     pub fn into_trie_account(self, storage_root: B256) -> TrieAccount {
         let Self { nonce, balance, bytecode_hash } = self;
         TrieAccount {
@@ -70,6 +74,7 @@ impl Account {
 }
 
 impl From<TrieAccount> for Account {
+    #[inline]
     fn from(value: TrieAccount) -> Self {
         Self {
             balance: value.balance,
@@ -80,6 +85,7 @@ impl From<TrieAccount> for Account {
 }
 
 impl InMemorySize for Account {
+    #[inline]
     fn size(&self) -> usize {
         size_of::<Self>()
     }
@@ -106,6 +112,7 @@ impl Bytecode {
     /// # Panics
     ///
     /// Panics if bytecode is EOF and has incorrect format.
+    #[inline]
     pub fn new_raw(bytes: Bytes) -> Self {
         Self(bytes)
     }
