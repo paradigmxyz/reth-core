@@ -113,7 +113,7 @@ impl Bytecode {
     ///
     /// Panics if bytecode is EOF and has incorrect format.
     #[inline]
-    pub fn new_raw(bytes: Bytes) -> Self {
+    pub const fn new_raw(bytes: Bytes) -> Self {
         Self(bytes)
     }
 
@@ -121,7 +121,7 @@ impl Bytecode {
     ///
     /// Returns an error on incorrect Bytecode format.
     #[inline]
-    pub fn new_raw_checked(bytecode: Bytes) -> Result<Self, BytecodeDecodeError> {
+    pub const fn new_raw_checked(bytecode: Bytes) -> Result<Self, BytecodeDecodeError> {
         Ok(Self::new_raw(bytecode))
     }
 
