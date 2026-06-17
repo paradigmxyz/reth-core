@@ -83,6 +83,15 @@ impl<B: Block> SealedOrRecoveredBlock<B> {
     }
 }
 
+impl<B: Block> PartialEq for SealedOrRecoveredBlock<B> {
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.sealed_block().eq(other.sealed_block())
+    }
+}
+
+impl<B: Block> Eq for SealedOrRecoveredBlock<B> {}
+
 impl<B: Block> From<SealedBlock<B>> for SealedOrRecoveredBlock<B> {
     #[inline]
     fn from(block: SealedBlock<B>) -> Self {
@@ -175,5 +184,16 @@ mod tests {
         assert_eq!(block.hash(), hash);
         assert!(block.recovered_block().is_some());
         assert_eq!(block.into_sealed_block().hash(), hash);
+    }
+
+    #[test]
+    fn sealed_and_recovered_variants_compare_by_sealed_block() {
+        let sealed = sealed_block();
+        let recovered = sealed.clone().with_senders(Vec::new());
+
+        assert_eq!(
+            SealedOrRecoveredBlock::sealed(sealed),
+            SealedOrRecoveredBlock::recovered(recovered)
+        );
     }
 }
