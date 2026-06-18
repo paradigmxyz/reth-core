@@ -233,6 +233,15 @@ pub trait Block:
         let (header, body) = self.split();
         alloy_consensus::Block::new(header, body.into_ethereum_body())
     }
+
+    /// Converts a regular ethereum block into this type.
+    #[inline]
+    fn from_ethereum_block(
+        block: alloy_consensus::Block<<Self::Body as BlockBody>::Transaction, alloy_consensus::Header>,
+    ) -> Self {
+        let alloy_consensus::Block { header, body } = block;
+        Self::new(Self::Header::from_ethereum_header(header), Self::Body::from_ethereum_body(body))
+    }
 }
 
 impl<T, H> Block for alloy_consensus::Block<T, H>

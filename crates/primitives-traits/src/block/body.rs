@@ -58,6 +58,11 @@ pub trait BlockBody:
     fn into_ethereum_body(self)
         -> alloy_consensus::BlockBody<Self::Transaction, Self::OmmerHeader>;
 
+    /// Converts a regular ethereum block body into this type.
+    fn from_ethereum_body(
+        body: alloy_consensus::BlockBody<Self::Transaction, alloy_consensus::Header>,
+    ) -> Self;
+
     /// Returns an iterator over the transactions in the block.
     #[inline]
     fn transactions_iter(&self) -> impl Iterator<Item = &Self::Transaction> + '_ {
@@ -262,6 +267,17 @@ where
     #[inline]
     fn into_ethereum_body(self) -> Self {
         self
+    }
+
+    #[inline]
+    fn from_ethereum_body(
+        body: alloy_consensus::BlockBody<T, alloy_consensus::Header>,
+    ) -> Self {
+        Self {
+            transactions: body.transactions,
+            ommers: body.ommers.into_iter().map(H::from_ethereum_header).collect(),
+            withdrawals: body.withdrawals,
+        }
     }
 
     #[inline]

@@ -33,6 +33,13 @@ pub trait BlockHeader:
     + AsRef<Self>
     + 'static
 {
+    /// Converts a regular ethereum block header into this type.
+    fn from_ethereum_header(header: alloy_consensus::Header) -> Self;
 }
 
-impl BlockHeader for alloy_consensus::Header {}
+impl BlockHeader for alloy_consensus::Header {
+    #[inline]
+    fn from_ethereum_header(header: Self) -> Self {
+        header
+    }
+}
