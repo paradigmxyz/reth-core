@@ -28,6 +28,9 @@ pub use sealed::{SealedBlock, SealedBlockWith};
 pub(crate) mod sealed_or_recovered;
 pub use sealed_or_recovered::SealedOrRecoveredBlock;
 
+#[cfg(feature = "serde")]
+pub mod serde_helpers;
+
 pub(crate) mod recovered;
 pub use recovered::RecoveredBlock;
 
@@ -132,6 +135,56 @@ pub trait Block:
         (self.header(), self.body())
     }
 
+    /// Serializes borrowed block parts with the same representation as this block type.
+    ///
+    /// This lets wrapper types like [`SealedBlock`] reuse the block's serde shape without cloning
+    /// the block. Implementations with a custom serde representation should override this method
+    /// together with [`Block::deserialize_from_fields`].
+    #[cfg(feature = "serde")]
+    #[inline]
+    fn serialize_ref<S>(
+        header: &Self::Header,
+        body: &Self::Body,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        Self::Header: serde::Serialize,
+        Self::Body: serde::Serialize,
+        S: serde::Serializer,
+    {
+        #[derive(serde::Serialize)]
+        struct BlockRef<'a, H, Body> {
+            header: &'a H,
+            body: &'a Body,
+        }
+
+        serde::Serialize::serialize(&BlockRef { header, body }, serializer)
+    }
+
+    /// Deserializes block parts from this block type's serde representation.
+    ///
+    /// This is the inverse of [`Block::serialize_ref`] for wrapper types that need to recover a
+    /// sealed block from the unsealed block representation.
+    #[cfg(feature = "serde")]
+    #[inline]
+    fn deserialize_from_fields<'de, D>(
+        deserializer: D,
+    ) -> Result<(Self::Header, Self::Body), D::Error>
+    where
+        Self::Header: serde::Deserialize<'de>,
+        Self::Body: serde::Deserialize<'de>,
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(serde::Deserialize)]
+        struct BlockParts<H, Body> {
+            header: H,
+            body: Body,
+        }
+
+        let BlockParts { header, body } = serde::Deserialize::deserialize(deserializer)?;
+        Ok((header, body))
+    }
+
     /// Consumes the block and returns the header.
     #[inline]
     fn into_header(self) -> Self::Header {
@@ -183,7 +236,7 @@ pub trait Block:
         } else {
             // Fall back to recovery if lengths don't match
             let Ok(senders) = self.body().recover_signers_unchecked() else {
-                return Err(BlockRecoveryError::new(self))
+                return Err(BlockRecoveryError::new(self));
             };
             senders
         };
@@ -207,7 +260,7 @@ pub trait Block:
     /// Returns the block as error if a signature is invalid.
     fn try_into_recovered(self) -> Result<RecoveredBlock<Self>, BlockRecoveryError<Self>> {
         let Ok(signers) = self.body().recover_signers() else {
-            return Err(BlockRecoveryError::new(self))
+            return Err(BlockRecoveryError::new(self));
         };
         Ok(RecoveredBlock::new_unhashed(self, signers))
     }
