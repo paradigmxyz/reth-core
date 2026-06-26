@@ -106,6 +106,17 @@ pub trait Block:
         SealedBlock::seal_slow(self)
     }
 
+    /// Decodes the block from RLP and seals it.
+    ///
+    /// Implementations can override this to compute the block hash while decoding.
+    fn decode_sealed(buf: &mut &[u8]) -> alloy_rlp::Result<SealedBlock<Self>>
+    where
+        Self: Sized,
+    {
+        let block = Self::decode(buf)?;
+        Ok(SealedBlock::seal_slow(block))
+    }
+
     /// Returns reference to block header.
     fn header(&self) -> &Self::Header;
 
@@ -131,6 +142,16 @@ pub trait Block:
     #[inline]
     fn into_body(self) -> Self::Body {
         self.split().1
+    }
+
+    /// Encodes the block with the given header and body.
+    fn rlp_encode(
+        header: &Self::Header,
+        body: &Self::Body,
+        out: &mut dyn alloy_rlp::bytes::BufMut,
+    ) {
+        // TODO: https://github.com/paradigmxyz/reth/issues/18002
+        Self::new(header.clone(), body.clone()).encode(out)
     }
 
     /// Returns the rlp length of the block with the given header and body.
@@ -244,6 +265,18 @@ where
 
     fn rlp_length(header: &Self::Header, body: &Self::Body) -> usize {
         Self::rlp_length_for(header, body)
+    }
+
+    fn rlp_encode(
+        header: &Self::Header,
+        body: &Self::Body,
+        out: &mut dyn alloy_rlp::bytes::BufMut,
+    ) {
+        Self::rlp_encode_from_parts(header, body, out)
+    }
+
+    fn decode_sealed(buf: &mut &[u8]) -> alloy_rlp::Result<SealedBlock<Self>> {
+        Self::decode_sealed(buf).map(Into::into)
     }
 
     #[inline]

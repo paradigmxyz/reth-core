@@ -1,8 +1,8 @@
 //! Sealed block types
 
 use crate::{
-    block::{error::BlockRecoveryError, header::BlockHeader, RecoveredBlock},
-    transaction::signed::{RecoveryError, SignedTransaction},
+    block::{error::BlockRecoveryError, RecoveredBlock},
+    transaction::signed::RecoveryError,
     Block, BlockBody, GotExpected, InMemorySize, SealedHeader,
 };
 use alloc::vec::Vec;
@@ -78,6 +78,11 @@ impl<B: Block> SealedBlock<B> {
     pub fn from_sealed_parts(header: SealedHeader<B::Header>, body: B::Body) -> Self {
         let (header, hash) = header.split();
         Self::from_parts_unchecked(header, body, hash)
+    }
+
+    /// Decodes the block from RLP and seals it.
+    pub fn decode_sealed(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
+        B::decode_sealed(buf)
     }
 
     /// Returns a reference to the block hash.
@@ -329,15 +334,17 @@ impl<B: Block> Deref for SealedBlock<B> {
 
 impl<B: Block> Encodable for SealedBlock<B> {
     fn encode(&self, out: &mut dyn BufMut) {
-        // TODO: https://github.com/paradigmxyz/reth/issues/18002
-        self.clone().into_block().encode(out);
+        B::rlp_encode(self.header(), self.body(), out);
+    }
+
+    fn length(&self) -> usize {
+        self.rlp_length()
     }
 }
 
 impl<B: Block> Decodable for SealedBlock<B> {
     fn decode(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
-        let block = B::decode(buf)?;
-        Ok(Self::seal_slow(block))
+        B::decode_sealed(buf)
     }
 }
 
@@ -354,24 +361,6 @@ impl<B: Block> From<Sealed<B>> for SealedBlock<B> {
     fn from(value: Sealed<B>) -> Self {
         let (block, hash) = value.into_parts();
         Self::new_unchecked(block, hash)
-    }
-}
-
-impl<T, H> SealedBlock<alloy_consensus::Block<T, H>>
-where
-    T: Decodable + SignedTransaction,
-    H: BlockHeader,
-{
-    /// Decodes the block from RLP, computing the header hash directly from the RLP bytes.
-    ///
-    /// This is more efficient than decoding and then sealing, as the header hash is computed
-    /// from the raw RLP bytes without re-encoding.
-    ///
-    /// This leverages [`alloy_consensus::Block::decode_sealed`].
-    pub fn decode_sealed(buf: &mut &[u8]) -> alloy_rlp::Result<Self> {
-        let sealed = alloy_consensus::Block::<T, H>::decode_sealed(buf)?;
-        let (block, hash) = sealed.into_parts();
-        Ok(Self::new_unchecked(block, hash))
     }
 }
 
@@ -513,10 +502,55 @@ impl<B: Block, T: InMemorySize> InMemorySize for SealedBlockWith<B, T> {
     }
 }
 
+impl<B: Block, T> Deref for SealedBlockWith<B, T> {
+    type Target = SealedBlock<B>;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        self.block()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use alloy_rlp::{Decodable, Encodable};
+
+    fn sample_alloy_block() -> alloy_consensus::Block<alloy_consensus::TxEnvelope> {
+        let header = alloy_consensus::Header {
+            number: 42,
+            gas_limit: 30_000_000,
+            gas_used: 21_000,
+            timestamp: 1_000_000,
+            base_fee_per_gas: Some(1_000_000_000),
+            ..Default::default()
+        };
+
+        let tx = alloy_consensus::TxLegacy {
+            chain_id: Some(1),
+            nonce: 0,
+            gas_price: 21_000_000_000,
+            gas_limit: 21_000,
+            to: alloy_primitives::TxKind::Call(Address::ZERO),
+            value: alloy_primitives::U256::from(100),
+            input: alloy_primitives::Bytes::default(),
+        };
+
+        let tx_signed =
+            alloy_consensus::TxEnvelope::Legacy(alloy_consensus::Signed::new_unchecked(
+                tx,
+                alloy_primitives::Signature::test_signature(),
+                B256::ZERO,
+            ));
+
+        let body = alloy_consensus::BlockBody {
+            transactions: vec![tx_signed],
+            ommers: vec![],
+            withdrawals: Some(Default::default()),
+        };
+
+        alloy_consensus::Block::new(header, body)
+    }
 
     #[test]
     fn test_sealed_block_rlp_roundtrip() {
@@ -576,6 +610,29 @@ mod tests {
         assert_eq!(sealed_block.header().number, decoded.header().number);
         assert_eq!(sealed_block.header().state_root, decoded.header().state_root);
         assert_eq!(sealed_block.body().transactions.len(), decoded.body().transactions.len());
+    }
+
+    #[test]
+    fn test_alloy_block_sealed_encoding_matches_regular_block() {
+        let block = sample_alloy_block();
+
+        let mut block_encoded = Vec::new();
+        block.encode(&mut block_encoded);
+
+        let mut borrowed_encoded = Vec::new();
+        <alloy_consensus::Block<alloy_consensus::TxEnvelope> as Block>::rlp_encode(
+            &block.header,
+            &block.body,
+            &mut borrowed_encoded,
+        );
+
+        let sealed_block = SealedBlock::seal_slow(block.clone());
+        let mut sealed_encoded = Vec::new();
+        sealed_block.encode(&mut sealed_encoded);
+
+        assert_eq!(borrowed_encoded, block_encoded);
+        assert_eq!(sealed_encoded, block_encoded);
+        assert_eq!(sealed_block.length(), block.length());
     }
 
     #[test]
@@ -662,6 +719,8 @@ mod tests {
 
         let with_data = SealedBlockWith::new(sealed_block.clone(), Some(42u64));
 
+        assert_eq!(&*with_data, &sealed_block);
+        assert_eq!(with_data.hash(), sealed_block.hash());
         assert_eq!(with_data.block(), &sealed_block);
         assert_eq!(with_data.data(), &Some(42));
 
