@@ -4,7 +4,7 @@ use alloy_genesis::GenesisAccount;
 use alloy_primitives::{keccak256, Bytes, B256, U256};
 use alloy_trie::TrieAccount;
 use derive_more::Deref;
-use thiserror::Error;
+use evm2::bytecode::{Bytecode as Evm2Bytecode, BytecodeDecodeError};
 
 #[cfg(feature = "reth-codec")]
 /// Identifiers used in [`Compact`](reth_codecs::Compact) encoding of [`Bytecode`].
@@ -97,44 +97,37 @@ reth_codecs::impl_compression_for_compact!(Account);
 /// Bytecode for an account.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deref)]
-pub struct Bytecode(pub Bytes);
-
-/// Bytecode decode error.
-#[derive(Debug, Error, Clone, Copy, PartialEq, Eq)]
-#[error("invalid bytecode")]
-pub struct BytecodeDecodeError;
+pub struct Bytecode(pub Evm2Bytecode);
 
 impl Bytecode {
     /// Create new bytecode from raw bytes.
-    ///
-    /// No analysis will be performed.
     ///
     /// # Panics
     ///
     /// Panics if bytecode is EOF and has incorrect format.
     #[inline]
-    pub const fn new_raw(bytes: Bytes) -> Self {
-        Self(bytes)
+    pub fn new_raw(bytes: Bytes) -> Self {
+        Self(Evm2Bytecode::new_raw(bytes))
     }
 
     /// Creates new raw bytecode.
     ///
     /// Returns an error on incorrect Bytecode format.
     #[inline]
-    pub const fn new_raw_checked(bytecode: Bytes) -> Result<Self, BytecodeDecodeError> {
-        Ok(Self::new_raw(bytecode))
+    pub fn new_raw_checked(bytecode: Bytes) -> Result<Self, BytecodeDecodeError> {
+        Evm2Bytecode::new_raw_checked(bytecode).map(Self)
     }
 
     /// Returns the original bytecode bytes.
     #[inline]
     pub fn original_bytes(&self) -> Bytes {
-        self.0.clone()
+        self.0.original_bytes()
     }
 
     /// Returns the original bytecode bytes by reference.
     #[inline]
-    pub const fn bytes_ref(&self) -> &Bytes {
-        &self.0
+    pub fn bytes_ref(&self) -> &[u8] {
+        self.0.original_byte_slice()
     }
 
     /// Returns the bytecode length.
@@ -152,13 +145,27 @@ impl Bytecode {
     /// Returns `true` if this is EIP-7702 delegation bytecode.
     #[inline]
     pub fn is_eip7702(&self) -> bool {
-        self.0.len() == 23 && self.0.starts_with(&[0xef, 0x01, 0x00])
+        self.0.is_eip7702()
     }
 
     /// Returns the keccak hash of the bytecode.
     #[inline]
     pub fn hash_slow(&self) -> B256 {
-        keccak256(&self.0)
+        self.0.hash_slow()
+    }
+}
+
+impl From<Evm2Bytecode> for Bytecode {
+    #[inline]
+    fn from(value: Evm2Bytecode) -> Self {
+        Self(value)
+    }
+}
+
+impl From<Bytecode> for Evm2Bytecode {
+    #[inline]
+    fn from(value: Bytecode) -> Self {
+        value.0
     }
 }
 
@@ -168,13 +175,26 @@ impl reth_codecs::Compact for Bytecode {
     where
         B: bytes::BufMut + AsMut<[u8]>,
     {
-        use compact_ids::LEGACY_RAW_BYTECODE_ID;
+        use compact_ids::{EIP7702_BYTECODE_ID, LEGACY_ANALYZED_BYTECODE_ID};
 
-        let bytecode = self.bytes_ref();
+        let bytecode = self.0.bytes();
         buf.put_u32(bytecode.len() as u32);
         buf.put_slice(bytecode.as_ref());
-        buf.put_u8(LEGACY_RAW_BYTECODE_ID);
-        bytecode.len() + 5
+        let len = if self.0.is_legacy() {
+            if let Some(jump_table) = self.0.legacy_jump_table() {
+                buf.put_u8(LEGACY_ANALYZED_BYTECODE_ID);
+                buf.put_u64(self.0.len() as u64);
+                let map = jump_table.as_slice();
+                buf.put_slice(map);
+                1 + 8 + map.len()
+            } else {
+                unreachable!("legacy bytecode must contain a jump table")
+            }
+        } else {
+            buf.put_u8(EIP7702_BYTECODE_ID);
+            1
+        };
+        len + bytecode.len() + 4
     }
 
     /// # Panics
@@ -207,12 +227,13 @@ impl reth_codecs::Compact for Bytecode {
                     // Otherwise, use original_len
                     original_len
                 };
-                buf.advance(jump_table_len.div_ceil(8));
-                assert!(
-                    original_len <= bytes.len(),
-                    "analyzed bytecode original length exceeds bytecode length"
-                );
-                Self::new_raw(bytes.slice(..original_len))
+                let jump_table_bytes = jump_table_len.div_ceil(8);
+                let jump_table =
+                    evm2::bytecode::JumpTable::from_slice(&buf[..jump_table_bytes], jump_table_len);
+                buf.advance(jump_table_bytes);
+                // SAFETY: jump table is constructed from the persisted bitvec and the bytecode
+                // length matches; this is the inverse of the original `to_compact` encoding.
+                Self(unsafe { Evm2Bytecode::new_analyzed(bytes, original_len, jump_table) })
             }
             EIP7702_BYTECODE_ID => {
                 // EIP-7702 bytecode objects will be decoded from the raw bytecode
