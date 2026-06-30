@@ -36,6 +36,12 @@ pub struct Account {
     pub balance: U256,
     /// Hash of the account's bytecode.
     pub bytecode_hash: Option<B256>,
+    /// Storage root associated with the account, if it is already known.
+    #[cfg_attr(
+        any(test, feature = "serde"),
+        serde(default, skip_serializing_if = "Option::is_none")
+    )]
+    pub storage_root: Option<B256>,
 }
 
 impl Account {
@@ -64,7 +70,7 @@ impl Account {
     /// Converts the account into a trie account with the given storage root.
     #[inline]
     pub fn into_trie_account(self, storage_root: B256) -> TrieAccount {
-        let Self { nonce, balance, bytecode_hash } = self;
+        let Self { nonce, balance, bytecode_hash, .. } = self;
         TrieAccount {
             nonce,
             balance,
@@ -83,6 +89,7 @@ impl Account {
             } else {
                 Some(revm_account.info.code_hash)
             },
+            storage_root: None,
         }
     }
 }
@@ -101,6 +108,7 @@ impl From<TrieAccount> for Account {
             balance: value.balance,
             nonce: value.nonce,
             bytecode_hash: (value.code_hash != KECCAK_EMPTY).then_some(value.code_hash),
+            storage_root: Some(value.storage_root),
         }
     }
 }
@@ -233,6 +241,7 @@ impl From<&GenesisAccount> for Account {
             nonce: value.nonce.unwrap_or_default(),
             balance: value.balance,
             bytecode_hash: value.code.as_ref().map(keccak256),
+            storage_root: None,
         }
     }
 }
@@ -243,6 +252,7 @@ impl From<AccountInfo> for Account {
             balance: revm_acc.balance,
             nonce: revm_acc.nonce,
             bytecode_hash: (!revm_acc.is_empty_code_hash()).then_some(revm_acc.code_hash),
+            storage_root: None,
         }
     }
 }
@@ -253,6 +263,7 @@ impl From<&AccountInfo> for Account {
             balance: revm_acc.balance,
             nonce: revm_acc.nonce,
             bytecode_hash: (!revm_acc.is_empty_code_hash()).then_some(revm_acc.code_hash),
+            storage_root: None,
         }
     }
 }
@@ -290,11 +301,52 @@ mod tests {
         acc.nonce = 2;
         let len = acc.to_compact(&mut buf);
         assert_eq!(len, 4);
+
+        acc.storage_root = Some(B256::repeat_byte(0x42));
+        let len = acc.to_compact(&mut buf);
+        assert_eq!(len, 36);
+    }
+
+    #[test]
+    fn test_account_storage_root_backwards_compatible_compact() {
+        let account = Account {
+            nonce: 2,
+            balance: U256::from(2),
+            bytecode_hash: Some(B256::repeat_byte(0x11)),
+            storage_root: None,
+        };
+        let mut encoded_without_storage_root = Vec::new();
+        let len_without_storage_root = account.to_compact(&mut encoded_without_storage_root);
+
+        let account_with_storage_root =
+            Account { storage_root: Some(B256::repeat_byte(0x22)), ..account };
+        let mut encoded_with_storage_root = Vec::new();
+        let len_with_storage_root =
+            account_with_storage_root.to_compact(&mut encoded_with_storage_root);
+
+        assert_eq!(len_without_storage_root, 36);
+        assert_eq!(len_with_storage_root, 68);
+
+        // Compact bytes produced before `storage_root` was added.
+        let mut old_format = vec![0x11, 0x04, 0x02, 0x02];
+        old_format.extend([0x11; 32]);
+        assert_eq!(encoded_without_storage_root, old_format);
+
+        let (decoded_without_storage_root, remainder) =
+            Account::from_compact(&encoded_without_storage_root, len_without_storage_root);
+        assert_eq!(decoded_without_storage_root, account);
+        assert!(remainder.is_empty());
+
+        let (decoded_with_storage_root, remainder) =
+            Account::from_compact(&encoded_with_storage_root, len_with_storage_root);
+        assert_eq!(decoded_with_storage_root, account_with_storage_root);
+        assert!(remainder.is_empty());
     }
 
     #[test]
     fn test_empty_account() {
-        let mut acc = Account { nonce: 0, balance: U256::ZERO, bytecode_hash: None };
+        let mut acc =
+            Account { nonce: 0, balance: U256::ZERO, bytecode_hash: None, storage_root: None };
         // Nonce 0, balance 0, and bytecode hash set to None is considered empty.
         assert!(acc.is_empty());
 
@@ -350,12 +402,21 @@ mod tests {
     #[test]
     fn test_account_has_bytecode() {
         // Account with no bytecode (None)
-        let acc_no_bytecode = Account { nonce: 1, balance: U256::from(1000), bytecode_hash: None };
+        let acc_no_bytecode = Account {
+            nonce: 1,
+            balance: U256::from(1000),
+            bytecode_hash: None,
+            storage_root: None,
+        };
         assert!(!acc_no_bytecode.has_bytecode(), "Account should not have bytecode");
 
         // Account with bytecode hash set to KECCAK_EMPTY (should have bytecode)
-        let acc_empty_bytecode =
-            Account { nonce: 1, balance: U256::from(1000), bytecode_hash: Some(KECCAK_EMPTY) };
+        let acc_empty_bytecode = Account {
+            nonce: 1,
+            balance: U256::from(1000),
+            bytecode_hash: Some(KECCAK_EMPTY),
+            storage_root: None,
+        };
         assert!(acc_empty_bytecode.has_bytecode(), "Account should have bytecode");
 
         // Account with a non-empty bytecode hash
@@ -363,6 +424,7 @@ mod tests {
             nonce: 1,
             balance: U256::from(1000),
             bytecode_hash: Some(B256::from_slice(&[0x11u8; 32])),
+            storage_root: None,
         };
         assert!(acc_with_bytecode.has_bytecode(), "Account should have bytecode");
     }
@@ -370,12 +432,17 @@ mod tests {
     #[test]
     fn test_account_get_bytecode_hash() {
         // Account with no bytecode (should return KECCAK_EMPTY)
-        let acc_no_bytecode = Account { nonce: 0, balance: U256::ZERO, bytecode_hash: None };
+        let acc_no_bytecode =
+            Account { nonce: 0, balance: U256::ZERO, bytecode_hash: None, storage_root: None };
         assert_eq!(acc_no_bytecode.get_bytecode_hash(), KECCAK_EMPTY, "Should return KECCAK_EMPTY");
 
         // Account with bytecode hash set to KECCAK_EMPTY
-        let acc_empty_bytecode =
-            Account { nonce: 1, balance: U256::from(1000), bytecode_hash: Some(KECCAK_EMPTY) };
+        let acc_empty_bytecode = Account {
+            nonce: 1,
+            balance: U256::from(1000),
+            bytecode_hash: Some(KECCAK_EMPTY),
+            storage_root: None,
+        };
         assert_eq!(
             acc_empty_bytecode.get_bytecode_hash(),
             KECCAK_EMPTY,
@@ -384,8 +451,12 @@ mod tests {
 
         // Account with a valid bytecode hash
         let bytecode_hash = B256::from_slice(&[0x11u8; 32]);
-        let acc_with_bytecode =
-            Account { nonce: 1, balance: U256::from(1000), bytecode_hash: Some(bytecode_hash) };
+        let acc_with_bytecode = Account {
+            nonce: 1,
+            balance: U256::from(1000),
+            bytecode_hash: Some(bytecode_hash),
+            storage_root: None,
+        };
         assert_eq!(
             acc_with_bytecode.get_bytecode_hash(),
             bytecode_hash,
