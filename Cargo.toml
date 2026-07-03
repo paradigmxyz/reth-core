@@ -28,7 +28,7 @@ alloy-eips = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
 alloy-signer = { version = "2.0", default-features = false }
 alloy-genesis = { version = "2.0", default-features = false }
-evm2 = { git = "https://github.com/alloy-rs/evm2", rev = "5332844958a3ba2a3ab561886d69220b8920c0ec", default-features = false }
+evm2 = { git = "https://github.com/alloy-rs/evm2", rev = "9a96d9d3bfa5a251ea661804fe9c3a0632720d28", default-features = false }
 
 # crypto
 secp256k1 = { version = "0.30", default-features = false, features = ["global-context", "recovery"] }
