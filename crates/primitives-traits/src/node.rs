@@ -1,4 +1,4 @@
-use crate::{FullBlock, FullBlockBody, FullBlockHeader, FullReceipt, FullSignedTx};
+use crate::{FullBlock, FullBlockBody, FullBlockHeader, FullReceipt, FullSignedTx, MaybeSerde};
 use core::fmt;
 
 /// Configures all the primitive types of the node.
@@ -22,6 +22,17 @@ pub trait NodePrimitives:
     type SignedTx: FullSignedTx;
     /// A receipt.
     type Receipt: FullReceipt;
+    /// State commitment.
+    type StateCommitment: MaybeSerde
+        + PartialEq
+        + Eq
+        + Clone
+        + Default
+        + Send
+        + Sync
+        + Unpin
+        + fmt::Debug
+        + 'static;
 }
 
 /// Helper adapter type for accessing [`NodePrimitives`] block header types.
@@ -38,3 +49,6 @@ pub type ReceiptTy<N> = <N as NodePrimitives>::Receipt;
 
 /// Helper adapter type for accessing [`NodePrimitives`] signed transaction types.
 pub type TxTy<N> = <N as NodePrimitives>::SignedTx;
+
+/// Helper adapter type for accessing [`NodePrimitives`] state commitment.
+pub type StateCommitmentTy<N> = <N as NodePrimitives>::StateCommitment;
