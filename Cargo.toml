@@ -28,9 +28,9 @@ alloy-eips = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
 alloy-signer = { version = "2.0", default-features = false }
 alloy-genesis = { version = "2.0", default-features = false }
-revm-primitives = { version = "41.0.0", default-features = false }
-revm-bytecode = { version = "41.0.0", default-features = false }
-revm-state = { version = "41.0.0", default-features = false }
+revm-primitives = { version = "42.0.0", default-features = false }
+revm-bytecode = { version = "42.0.0", default-features = false }
+revm-state = { version = "42.0.0", default-features = false }
 
 # crypto
 secp256k1 = { version = "0.30", default-features = false, features = ["global-context", "recovery"] }
