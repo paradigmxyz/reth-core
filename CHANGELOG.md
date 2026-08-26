@@ -5,6 +5,191 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.7.0) - 2026-08-26
+
+### Dependencies
+
+- Bump revm to 43.0.0 ([#43](https://github.com/paradigmxyz/reth-core/issues/43))
+
 ## [0.6.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.6.0) - 2026-07-31
+
+### Dependencies
+
+- Bump revm to 42.0.0 ([#41](https://github.com/paradigmxyz/reth-core/issues/41))
+
+### Miscellaneous Tasks
+
+- Release 0.6.0
+
+### Testing
+
+- [codecs] Assert rlp encoded byte roundtrips ([#39](https://github.com/paradigmxyz/reth-core/issues/39))
+
+## [0.5.2](https://github.com/paradigmxyz/reth-core/releases/tag/v0.5.2) - 2026-06-18
+
+### Features
+
+- [primitives-traits] Impl PartialEq for SealedOrRecoveredBlock ([#34](https://github.com/paradigmxyz/reth-core/issues/34))
+
+### Miscellaneous Tasks
+
+- Release 0.5.2
+
+## [0.5.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.5.1) - 2026-06-15
+
+### Features
+
+- [primitives] Implement Deref for SealedBlockWith ([#32](https://github.com/paradigmxyz/reth-core/issues/32))
+
+### Miscellaneous Tasks
+
+- Release 0.5.1
+
+## [0.5.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.5.0) - 2026-06-12
+
+### Dependencies
+
+- Bump revm crates to 41.0.0 ([#31](https://github.com/paradigmxyz/reth-core/issues/31))
+
+### Features
+
+- [primitives] Add block hash if block access list helper ([#29](https://github.com/paradigmxyz/reth-core/issues/29))
+
+### Miscellaneous Tasks
+
+- Release 0.5.0
+
+### Other
+
+- Allow proc-macro-error2 advisory ([#30](https://github.com/paradigmxyz/reth-core/issues/30))
+
+### Refactor
+
+- [primitives] Inline primitives trait helpers ([#28](https://github.com/paradigmxyz/reth-core/issues/28))
+
+## [0.4.2](https://github.com/paradigmxyz/reth-core/releases/tag/v0.4.2) - 2026-06-07
+
+### Features
+
+- [primitives] Add sealed-or-recovered block wrapper ([#23](https://github.com/paradigmxyz/reth-core/issues/23))
+
+### Miscellaneous Tasks
+
+- Release 0.4.2
+
+### Performance
+
+- [primitives] Optimize sealed block decoding ([#27](https://github.com/paradigmxyz/reth-core/issues/27))
+
+## [0.4.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.4.1) - 2026-06-05
+
+### Bug Fixes
+
+- [primitives] Avoid sealed block clone during encoding ([#26](https://github.com/paradigmxyz/reth-core/issues/26))
+
+### Features
+
+- [primitives-traits] Make quanta opt-in for FastInstant ([#25](https://github.com/paradigmxyz/reth-core/issues/25))
+
+### Miscellaneous Tasks
+
+- Release 0.4.1
+
+## [0.4.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.4.0) - 2026-05-21
+
+### Features
+
+- [primitives] Add SealedBlockWith ([#21](https://github.com/paradigmxyz/reth-core/issues/21))
+
+### Miscellaneous Tasks
+
+- Release 0.4.0
+- Integrate revm devnet7 (rev f7ccd08c) ([#22](https://github.com/paradigmxyz/reth-core/issues/22))
+
+## [0.3.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.3.1) - 2026-04-24
+
+### Features
+
+- [primitives-traits] Add missing HeaderMut setters ([#15](https://github.com/paradigmxyz/reth-core/issues/15))
+
+### Miscellaneous Tasks
+
+- Release 0.3.1
+- Add timestamp into tx info ([#16](https://github.com/paradigmxyz/reth-core/issues/16))
+
+## [0.3.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.3.0) - 2026-04-14
+
+### Dependencies
+
+- Bump revm ([#10](https://github.com/paradigmxyz/reth-core/issues/10))
+
+### Miscellaneous Tasks
+
+- Release 0.3.0
+
+## [0.2.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.2.0) - 2026-04-13
+
+### Dependencies
+
+- Bump alloy deps to 2.0 ([#13](https://github.com/paradigmxyz/reth-core/issues/13))
+
+### Miscellaneous Tasks
+
+- Release 0.2.0
+- Release 0.2.0
+- [deny] Ignore RUSTSEC-2026-0097 rand advisory ([#11](https://github.com/paradigmxyz/reth-core/issues/11))
+
+## [0.1.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.1.1) - 2026-04-10
+
+### Bug Fixes
+
+- [codecs] Add Compact impl for NonZeroU64 ([#9](https://github.com/paradigmxyz/reth-core/issues/9))
+
+### Documentation
+
+- Add reth-rpc-traits crate ([#8](https://github.com/paradigmxyz/reth-core/issues/8))
+- List primitives-traits crate in README ([#5](https://github.com/paradigmxyz/reth-core/issues/5))
+
+### Features
+
+- Add reth-rpc-traits crate ([#6](https://github.com/paradigmxyz/reth-core/issues/6))
+
+### Miscellaneous Tasks
+
+- Release 0.1.1
+- Release 0.1.0
+
+## [0.1.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.1.0) - 2026-03-25
+
+### Bug Fixes
+
+- No_std reth-codecs
+
+### Features
+
+- Add reth-primitives-traits crate ([#4](https://github.com/paradigmxyz/reth-core/issues/4))
+- DecompressError ([#3](https://github.com/paradigmxyz/reth-core/issues/3))
+- .github ([#2](https://github.com/paradigmxyz/reth-core/issues/2))
+- [codecs] Add Compress and Decompress traits
+- Move reth-zstd-compressors into workspace
+- Init reth-core with reth-codecs and reth-codecs-derive
+
+### Miscellaneous Tasks
+
+- Release 0.1.0
+- Release 0.1.0
+- Add cliff.toml
+- Update deny.toml
+- Add crate descriptions
+- Fix no std check
+- Fix ci
+- 0.1.0
+- Add licenses, config files, and release tooling
+
+### Other
+
+- Add CHANGELOG.md
+- Create README.md
+- Remove op
 
 <!-- generated by git-cliff -->
