@@ -150,3 +150,8 @@ redundant_pub_crate = "allow"
 significant_drop_in_scrutinee = "allow"
 significant_drop_tightening = "allow"
 too_long_first_doc_paragraph = "allow"
+
+[patch.crates-io]
+revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "d9ff851f6350f047238bcfdf5a31b0f76e41e2f9" }
+revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "d9ff851f6350f047238bcfdf5a31b0f76e41e2f9" }
+revm-state = { git = "https://github.com/bluealloy/revm", rev = "d9ff851f6350f047238bcfdf5a31b0f76e41e2f9" }
