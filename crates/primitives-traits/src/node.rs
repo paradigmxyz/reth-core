@@ -1,4 +1,6 @@
-use crate::{FullBlock, FullBlockBody, FullBlockHeader, FullReceipt, FullSignedTx};
+use crate::{
+    Account, AccountExtension, FullBlock, FullBlockBody, FullBlockHeader, FullReceipt, FullSignedTx,
+};
 use core::fmt;
 
 /// Configures all the primitive types of the node.
@@ -9,6 +11,8 @@ use core::fmt;
 pub trait NodePrimitives:
     Send + Sync + Unpin + Clone + Default + fmt::Debug + PartialEq + Eq + 'static
 {
+    /// Chain-specific data appended to account trie leaves.
+    type AccountExtension: AccountExtension;
     /// Block primitive.
     type Block: FullBlock<Header = Self::BlockHeader, Body = Self::BlockBody>;
     /// Block header primitive.
@@ -23,6 +27,12 @@ pub trait NodePrimitives:
     /// A receipt.
     type Receipt: FullReceipt;
 }
+
+/// Helper adapter type for accessing a [`NodePrimitives`] account extension.
+pub type AccountExtensionTy<N> = <N as NodePrimitives>::AccountExtension;
+
+/// Helper adapter type for an [`Account`] configured by [`NodePrimitives`].
+pub type AccountTy<N> = Account<AccountExtensionTy<N>>;
 
 /// Helper adapter type for accessing [`NodePrimitives`] block header types.
 pub type HeaderTy<N> = <N as NodePrimitives>::BlockHeader;
