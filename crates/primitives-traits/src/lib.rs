@@ -147,6 +147,8 @@ pub use transaction::{
 };
 
 pub mod block;
+#[cfg(feature = "rpc-compat")]
+pub use block::recovered::SetBlockSize;
 pub use block::{
     body::{BlockBody, FullBlockBody},
     header::{AlloyBlockHeader, BlockHeader, FullBlockHeader},
