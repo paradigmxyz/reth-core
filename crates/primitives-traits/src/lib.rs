@@ -129,7 +129,7 @@ pub use constants::gas_units::{format_gas, format_gas_throughput};
 
 /// Minimal account
 pub mod account;
-pub use account::{Account, Bytecode};
+pub use account::{Account, AccountExtension, Bytecode, EmptyAccountExtension};
 
 pub mod receipt;
 pub use receipt::{FullReceipt, Receipt};
@@ -189,7 +189,9 @@ pub use rayon::ParallelBridgeBuffered;
 
 /// Node traits
 pub mod node;
-pub use node::{BlockTy, BodyTy, HeaderTy, NodePrimitives, ReceiptTy, TxTy};
+pub use node::{
+    AccountExtensionTy, AccountTy, BlockTy, BodyTy, HeaderTy, NodePrimitives, ReceiptTy, TxTy,
+};
 
 /// Helper trait that requires de-/serialize implementation since `serde` feature is enabled.
 #[cfg(feature = "serde")]
