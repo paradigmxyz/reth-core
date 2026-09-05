@@ -9,6 +9,6 @@ pub trait FromConsensusHeader<T> {
 
 impl<T: Sealable> FromConsensusHeader<T> for alloy_rpc_types_eth::Header<T> {
     fn from_consensus_header(header: SealedHeader<T>) -> Self {
-        Self::from_consensus(header.into(), None, None)
+        Self::from_sealed(header.into())
     }
 }

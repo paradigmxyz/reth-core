@@ -726,23 +726,7 @@ mod rpc_compat {
         transaction::{Recovered, TxHashRef},
         Block as CBlock, BlockBody, BlockHeader, Sealable,
     };
-    use alloy_primitives::U256;
     use alloy_rpc_types_eth::{Block, BlockTransactions, BlockTransactionsKind, TransactionInfo};
-
-    /// An RPC header response with a settable `size` field.
-    ///
-    /// `size` is the RLP length of the entire block, so only block responses carry it. Header
-    /// responses omit it: <https://github.com/ethereum/execution-apis/pull/877>
-    pub trait SetBlockSize {
-        /// Sets `size` to the RLP length of the block.
-        fn set_block_size(&mut self, size: usize);
-    }
-
-    impl<H> SetBlockSize for alloy_rpc_types_eth::Header<H> {
-        fn set_block_size(&mut self, size: usize) {
-            self.size = Some(U256::from(size));
-        }
-    }
 
     impl<B> RecoveredBlock<B>
     where
@@ -753,8 +737,7 @@ mod rpc_compat {
         /// The `converter` closure transforms each transaction into the desired response
         /// type.
         ///
-        /// `header_builder` transforms the block header into RPC representation. The `size` field
-        /// is set from the RLP length of the block after that conversion.
+        /// `header_builder` transforms the block header into RPC representation.
         pub fn into_rpc_block<T, RpcH, F, E>(
             self,
             kind: BlockTransactionsKind,
@@ -762,7 +745,6 @@ mod rpc_compat {
             header_builder: impl FnOnce(SealedHeader<B::Header>) -> Result<RpcH, E>,
         ) -> Result<Block<T, RpcH>, E>
         where
-            RpcH: SetBlockSize,
             F: Fn(
                 Recovered<<<B as BlockTrait>::Body as BlockBodyTrait>::Transaction>,
                 TransactionInfo,
@@ -782,8 +764,7 @@ mod rpc_compat {
         /// The `converter` closure transforms each transaction into the desired response
         /// type.
         ///
-        /// `header_builder` transforms the block header into RPC representation. The `size` field
-        /// is set from the RLP length of the block after that conversion.
+        /// `header_builder` transforms the block header into RPC representation.
         pub fn clone_into_rpc_block<T, RpcH, F, E>(
             &self,
             kind: BlockTransactionsKind,
@@ -791,7 +772,6 @@ mod rpc_compat {
             header_builder: impl FnOnce(SealedHeader<B::Header>) -> Result<RpcH, E>,
         ) -> Result<Block<T, RpcH>, E>
         where
-            RpcH: SetBlockSize,
             F: Fn(
                 Recovered<<<B as BlockTrait>::Body as BlockBodyTrait>::Transaction>,
                 TransactionInfo,
@@ -812,20 +792,15 @@ mod rpc_compat {
         pub fn to_rpc_block_with_tx_hashes<T, RpcH, E>(
             &self,
             header_builder: impl FnOnce(SealedHeader<B::Header>) -> Result<RpcH, E>,
-        ) -> Result<Block<T, RpcH>, E>
-        where
-            RpcH: SetBlockSize,
-        {
+        ) -> Result<Block<T, RpcH>, E> {
             let transactions = self.body().transaction_hashes_iter().copied().collect();
-            let rlp_length = self.rlp_length();
             let header = self.clone_sealed_header();
             let withdrawals = self.body().withdrawals().cloned();
 
             let transactions = BlockTransactions::Hashes(transactions);
             let uncles =
                 self.body().ommers().unwrap_or(&[]).iter().map(|h| h.hash_slow()).collect();
-            let mut header = header_builder(header)?;
-            header.set_block_size(rlp_length);
+            let header = header_builder(header)?;
 
             Ok(Block { header, uncles, transactions, withdrawals })
         }
@@ -837,19 +812,14 @@ mod rpc_compat {
         pub fn into_rpc_block_with_tx_hashes<T, E, RpcHeader>(
             self,
             f: impl FnOnce(SealedHeader<B::Header>) -> Result<RpcHeader, E>,
-        ) -> Result<Block<T, RpcHeader>, E>
-        where
-            RpcHeader: SetBlockSize,
-        {
+        ) -> Result<Block<T, RpcHeader>, E> {
             let transactions = self.body().transaction_hashes_iter().copied().collect();
-            let rlp_length = self.rlp_length();
             let (header, body) = self.into_sealed_block().split_sealed_header_body();
             let BlockBody { ommers, withdrawals, .. } = body.into_ethereum_body();
 
             let transactions = BlockTransactions::Hashes(transactions);
             let uncles = ommers.into_iter().map(|h| h.hash_slow()).collect();
-            let mut header = f(header)?;
-            header.set_block_size(rlp_length);
+            let header = f(header)?;
 
             Ok(Block { header, uncles, transactions, withdrawals })
         }
@@ -864,7 +834,6 @@ mod rpc_compat {
             header_builder: impl FnOnce(SealedHeader<B::Header>) -> Result<RpcHeader, E>,
         ) -> Result<Block<T, RpcHeader>, E>
         where
-            RpcHeader: SetBlockSize,
             F: Fn(
                 Recovered<<<B as BlockTrait>::Body as BlockBodyTrait>::Transaction>,
                 TransactionInfo,
@@ -872,7 +841,6 @@ mod rpc_compat {
         {
             let block_number = self.header().number();
             let base_fee = self.header().base_fee_per_gas();
-            let block_length = self.rlp_length();
             let block_hash = Some(self.hash());
             let block_timestamp = self.header().timestamp();
 
@@ -901,8 +869,7 @@ mod rpc_compat {
 
             let transactions = BlockTransactions::Full(transactions);
             let uncles = ommers.into_iter().map(|h| h.hash_slow()).collect();
-            let mut header = header_builder(header)?;
-            header.set_block_size(block_length);
+            let header = header_builder(header)?;
 
             let block = Block { header, uncles, transactions, withdrawals };
 
@@ -949,9 +916,6 @@ mod rpc_compat {
         }
     }
 }
-
-#[cfg(feature = "rpc-compat")]
-pub use rpc_compat::SetBlockSize;
 
 #[cfg(test)]
 mod tests {
