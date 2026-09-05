@@ -737,14 +737,12 @@ mod rpc_compat {
         /// The `converter` closure transforms each transaction into the desired response
         /// type.
         ///
-        /// `header_builder` transforms the block header into RPC representation. It takes the
-        /// consensus header and RLP length of the block which is a common dependency of RPC
-        /// headers.
+        /// `header_builder` transforms the block header into RPC representation.
         pub fn into_rpc_block<T, RpcH, F, E>(
             self,
             kind: BlockTransactionsKind,
             converter: F,
-            header_builder: impl FnOnce(SealedHeader<B::Header>, usize) -> Result<RpcH, E>,
+            header_builder: impl FnOnce(SealedHeader<B::Header>) -> Result<RpcH, E>,
         ) -> Result<Block<T, RpcH>, E>
         where
             F: Fn(
@@ -766,14 +764,12 @@ mod rpc_compat {
         /// The `converter` closure transforms each transaction into the desired response
         /// type.
         ///
-        /// `header_builder` transforms the block header into RPC representation. It takes the
-        /// consensus header and RLP length of the block which is a common dependency of RPC
-        /// headers.
+        /// `header_builder` transforms the block header into RPC representation.
         pub fn clone_into_rpc_block<T, RpcH, F, E>(
             &self,
             kind: BlockTransactionsKind,
             converter: F,
-            header_builder: impl FnOnce(SealedHeader<B::Header>, usize) -> Result<RpcH, E>,
+            header_builder: impl FnOnce(SealedHeader<B::Header>) -> Result<RpcH, E>,
         ) -> Result<Block<T, RpcH>, E>
         where
             F: Fn(
@@ -795,17 +791,16 @@ mod rpc_compat {
         /// Efficiently clones only necessary parts, not the entire block.
         pub fn to_rpc_block_with_tx_hashes<T, RpcH, E>(
             &self,
-            header_builder: impl FnOnce(SealedHeader<B::Header>, usize) -> Result<RpcH, E>,
+            header_builder: impl FnOnce(SealedHeader<B::Header>) -> Result<RpcH, E>,
         ) -> Result<Block<T, RpcH>, E> {
             let transactions = self.body().transaction_hashes_iter().copied().collect();
-            let rlp_length = self.rlp_length();
             let header = self.clone_sealed_header();
             let withdrawals = self.body().withdrawals().cloned();
 
             let transactions = BlockTransactions::Hashes(transactions);
             let uncles =
                 self.body().ommers().unwrap_or(&[]).iter().map(|h| h.hash_slow()).collect();
-            let header = header_builder(header, rlp_length)?;
+            let header = header_builder(header)?;
 
             Ok(Block { header, uncles, transactions, withdrawals })
         }
@@ -816,16 +811,15 @@ mod rpc_compat {
         /// hashes.
         pub fn into_rpc_block_with_tx_hashes<T, E, RpcHeader>(
             self,
-            f: impl FnOnce(SealedHeader<B::Header>, usize) -> Result<RpcHeader, E>,
+            f: impl FnOnce(SealedHeader<B::Header>) -> Result<RpcHeader, E>,
         ) -> Result<Block<T, RpcHeader>, E> {
             let transactions = self.body().transaction_hashes_iter().copied().collect();
-            let rlp_length = self.rlp_length();
             let (header, body) = self.into_sealed_block().split_sealed_header_body();
             let BlockBody { ommers, withdrawals, .. } = body.into_ethereum_body();
 
             let transactions = BlockTransactions::Hashes(transactions);
             let uncles = ommers.into_iter().map(|h| h.hash_slow()).collect();
-            let header = f(header, rlp_length)?;
+            let header = f(header)?;
 
             Ok(Block { header, uncles, transactions, withdrawals })
         }
@@ -837,7 +831,7 @@ mod rpc_compat {
         pub fn into_rpc_block_full<T, RpcHeader, F, E>(
             self,
             converter: F,
-            header_builder: impl FnOnce(SealedHeader<B::Header>, usize) -> Result<RpcHeader, E>,
+            header_builder: impl FnOnce(SealedHeader<B::Header>) -> Result<RpcHeader, E>,
         ) -> Result<Block<T, RpcHeader>, E>
         where
             F: Fn(
@@ -847,7 +841,6 @@ mod rpc_compat {
         {
             let block_number = self.header().number();
             let base_fee = self.header().base_fee_per_gas();
-            let block_length = self.rlp_length();
             let block_hash = Some(self.hash());
             let block_timestamp = self.header().timestamp();
 
@@ -876,7 +869,7 @@ mod rpc_compat {
 
             let transactions = BlockTransactions::Full(transactions);
             let uncles = ommers.into_iter().map(|h| h.hash_slow()).collect();
-            let header = header_builder(header, block_length)?;
+            let header = header_builder(header)?;
 
             let block = Block { header, uncles, transactions, withdrawals };
 
