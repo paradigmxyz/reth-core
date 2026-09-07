@@ -97,7 +97,11 @@ impl<T> AccountExtension for T where
 }
 
 /// An Ethereum account with chain-specific extension data.
-#[cfg_attr(any(test, feature = "serde"), derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(any(test, feature = "serde"), derive(serde::Deserialize))]
+#[cfg_attr(
+    any(test, feature = "serde"),
+    serde(bound(deserialize = "E: serde::Deserialize<'de> + Default"))
+)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct Account<E = EmptyAccountExtension> {
@@ -108,7 +112,37 @@ pub struct Account<E = EmptyAccountExtension> {
     /// Hash of the account's bytecode.
     pub bytecode_hash: Option<B256>,
     /// Chain-specific account data committed to the account trie leaf.
+    #[cfg_attr(any(test, feature = "serde"), serde(default))]
     pub extension: E,
+}
+
+#[cfg(any(test, feature = "serde"))]
+fn is_default<T: Default + PartialEq>(value: &T) -> bool {
+    value == &T::default()
+}
+
+#[cfg(any(test, feature = "serde"))]
+impl<E> serde::Serialize for Account<E>
+where
+    E: serde::Serialize + Default + PartialEq,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+
+        let include_extension = !serializer.is_human_readable() || !is_default(&self.extension);
+        let mut state =
+            serializer.serialize_struct("Account", 3 + usize::from(include_extension))?;
+        state.serialize_field("nonce", &self.nonce)?;
+        state.serialize_field("balance", &self.balance)?;
+        state.serialize_field("bytecode_hash", &self.bytecode_hash)?;
+        if include_extension {
+            state.serialize_field("extension", &self.extension)?;
+        }
+        state.end()
+    }
 }
 
 #[cfg(feature = "reth-codec")]
@@ -409,6 +443,17 @@ impl<E: AccountExtension> From<Account<E>> for AccountInfo {
             account_id: None,
             extension: encode_extension(&reth_acc.extension),
         }
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+
+    #[test]
+    fn empty_extension_is_not_serialized() {
+        let json = serde_json::to_value(Account::<EmptyAccountExtension>::default()).unwrap();
+        assert!(!json.as_object().unwrap().contains_key("extension"));
     }
 }
 
