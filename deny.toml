@@ -78,4 +78,10 @@ unknown-registry = "warn"
 # Lint level for what to happen when a crate from a git repository that is not
 # in the allow list is encountered
 unknown-git = "deny"
+# Sources of the pinned account-extension workspace patches.
+allow-git = [
+    "https://github.com/alloy-rs/alloy",
+    "https://github.com/alloy-rs/trie",
+    "https://github.com/bluealloy/revm",
+]
 unused-allowed-source = "allow"
