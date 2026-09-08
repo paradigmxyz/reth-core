@@ -112,7 +112,7 @@ jobs:
         env:
           RUSTFLAGS: -Dwarnings
       # Exercise the sealed account-extension bound with revm's payload disabled.
-      - run: cargo +nightly clippy --workspace --all-targets
+      - run: cargo +nightly clippy --workspace --all-targets --features reth-primitives-traits/reth-codec,reth-primitives-traits/serde,reth-primitives-traits/arbitrary
         env:
           RUSTFLAGS: -Dwarnings
 
