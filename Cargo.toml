@@ -4,7 +4,7 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.93"
+rust-version = "1.94.1"
 version = "0.7.0"
 license = "MIT OR Apache-2.0"
 homepage = "https://paradigmxyz.github.io/reth"
@@ -27,7 +27,7 @@ alloy-consensus = { version = "2.0", default-features = false }
 alloy-eips = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
 alloy-signer = { version = "2.0", default-features = false }
-alloy-genesis = { version = "2.0", default-features = false }
+alloy-genesis = { version = "2.4.2", default-features = false }
 revm-primitives = { version = "43.0.0", default-features = false }
 revm-bytecode = { version = "43.0.0", default-features = false }
 revm-state = { version = "43.0.0", default-features = false }
@@ -151,8 +151,8 @@ significant_drop_tightening = "allow"
 too_long_first_doc_paragraph = "allow"
 
 [patch.crates-io]
-alloy-trie = { git = "https://github.com/alloy-rs/trie", rev = "7193a8bc1ed2c0855025ef5b04337af2fc6589f5" }
-alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "1b89dceb" }
-revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "ec31682237dd9b6e4407e4d22eb7b9d965070e4f" }
-revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "ec31682237dd9b6e4407e4d22eb7b9d965070e4f" }
-revm-state = { git = "https://github.com/bluealloy/revm", rev = "ec31682237dd9b6e4407e4d22eb7b9d965070e4f" }
+alloy-trie = { git = "https://github.com/alloy-rs/trie", rev = "656566e48ec46279e41d15eb52732e86f704712f" }
+alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "41103fe8" }
+revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "289754ce6ea150c693ea19a2a3b8a652b6021710" }
+revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "289754ce6ea150c693ea19a2a3b8a652b6021710" }
+revm-state = { git = "https://github.com/bluealloy/revm", rev = "289754ce6ea150c693ea19a2a3b8a652b6021710" }
