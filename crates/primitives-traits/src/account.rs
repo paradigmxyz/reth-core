@@ -1,5 +1,4 @@
 use crate::{InMemorySize, MaybeCompact, MaybeSerde};
-use alloc::vec::Vec;
 use alloy_consensus::constants::KECCAK_EMPTY;
 use alloy_genesis::GenesisAccount;
 use alloy_primitives::{keccak256, Bytes, B256, U256};
@@ -64,8 +63,12 @@ impl InMemorySize for EmptyAccountExtension {
 }
 
 /// Requirements for chain-specific account data.
+///
+/// Custom extensions require the `account-ext` feature. Without it, only
+/// [`EmptyAccountExtension`] is supported, so execution cannot silently discard account data.
 pub trait AccountExtension:
-    Clone
+    account_ext_support::Enabled
+    + Clone
     + Debug
     + Default
     + Eq
@@ -81,7 +84,8 @@ pub trait AccountExtension:
 }
 
 impl<T> AccountExtension for T where
-    T: Clone
+    T: account_ext_support::Enabled
+        + Clone
         + Debug
         + Default
         + Eq
@@ -94,6 +98,20 @@ impl<T> AccountExtension for T where
         + Unpin
         + 'static
 {
+}
+
+mod account_ext_support {
+    // This sealed capability connects the generic persisted account type to revm's
+    // feature-gated payload field. Downstream types cannot bypass it: without
+    // account-ext, only the empty extension can satisfy AccountExtension (including
+    // NodePrimitives::AccountExtension and conversions to/from revm).
+    pub trait Enabled {}
+
+    #[cfg(feature = "account-ext")]
+    impl<T> Enabled for T {}
+
+    #[cfg(not(feature = "account-ext"))]
+    impl Enabled for super::EmptyAccountExtension {}
 }
 
 /// An Ethereum account with chain-specific extension data.
@@ -198,12 +216,15 @@ impl<E: reth_codecs::Compact> reth_codecs::Compact for Account<E> {
 #[cfg(feature = "reth-codec")]
 reth_codecs::impl_compression_for_compact!(Account<E>);
 
-fn encode_extension<E: TrieAccountExtension>(extension: &E) -> Bytes {
-    let mut bytes = Vec::with_capacity(extension.payload_length());
-    extension.encode_payload(&mut bytes);
-    bytes.into()
+#[cfg(feature = "account-ext")]
+fn encode_extension<E: TrieAccountExtension>(extension: &E) -> revm_state::AccountExtension {
+    revm_state::AccountExtension::new_with(extension.payload_length(), |mut out| {
+        extension.encode_payload(&mut out);
+        assert!(out.is_empty(), "account extension encoder wrote fewer bytes than payload_length");
+    })
 }
 
+#[cfg(feature = "account-ext")]
 fn decode_extension<E: TrieAccountExtension>(bytes: &[u8]) -> E {
     let mut payload = bytes;
     let extension = E::decode_payload(&mut payload).expect("invalid account extension");
@@ -258,7 +279,10 @@ impl<E: AccountExtension> Account<E> {
             } else {
                 Some(revm_account.info.code_hash)
             },
+            #[cfg(feature = "account-ext")]
             extension: decode_extension(&revm_account.info.extension),
+            #[cfg(not(feature = "account-ext"))]
+            extension: E::default(),
         }
     }
 }
@@ -417,7 +441,10 @@ impl<E: AccountExtension> From<AccountInfo> for Account<E> {
             balance: revm_acc.balance,
             nonce: revm_acc.nonce,
             bytecode_hash: (!revm_acc.is_empty_code_hash()).then_some(revm_acc.code_hash),
+            #[cfg(feature = "account-ext")]
             extension: decode_extension(&revm_acc.extension),
+            #[cfg(not(feature = "account-ext"))]
+            extension: E::default(),
         }
     }
 }
@@ -428,7 +455,10 @@ impl<E: AccountExtension> From<&AccountInfo> for Account<E> {
             balance: revm_acc.balance,
             nonce: revm_acc.nonce,
             bytecode_hash: (!revm_acc.is_empty_code_hash()).then_some(revm_acc.code_hash),
+            #[cfg(feature = "account-ext")]
             extension: decode_extension(&revm_acc.extension),
+            #[cfg(not(feature = "account-ext"))]
+            extension: E::default(),
         }
     }
 }
@@ -441,6 +471,7 @@ impl<E: AccountExtension> From<Account<E>> for AccountInfo {
             code_hash: reth_acc.bytecode_hash.unwrap_or(KECCAK_EMPTY),
             code: None,
             account_id: None,
+            #[cfg(feature = "account-ext")]
             extension: encode_extension(&reth_acc.extension),
         }
     }
@@ -460,6 +491,7 @@ mod serde_tests {
 #[cfg(all(test, feature = "std", feature = "reth-codec"))]
 mod tests {
     use super::*;
+    use alloc::vec::Vec;
     use alloy_primitives::{hex_literal::hex, B256, U256};
     use reth_codecs::Compact;
     use revm_bytecode::JumpTable;
@@ -503,6 +535,11 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "account-ext")]
+    static_assertions::assert_impl_all!(TestExtension: AccountExtension);
+    #[cfg(not(feature = "account-ext"))]
+    static_assertions::assert_not_impl_any!(TestExtension: AccountExtension);
+
     #[test]
     fn test_account() {
         let mut buf = vec![];
@@ -541,6 +578,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "account-ext")]
     fn custom_extension_roundtrips_all_representations() {
         let account = Account {
             nonce: 1,
