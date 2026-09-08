@@ -217,7 +217,12 @@ impl<E: reth_codecs::Compact> reth_codecs::Compact for Account<E> {
 reth_codecs::impl_compression_for_compact!(Account<E>);
 
 #[cfg(feature = "account-ext")]
-fn encode_extension<E: TrieAccountExtension>(extension: &E) -> revm_state::AccountExtension {
+fn encode_extension<E: AccountExtension>(extension: &E) -> revm_state::AccountExtension {
+    // Match Account::is_empty and revm's byte-based emptiness check even when the
+    // extension's default has a nonempty RLP encoding.
+    if *extension == E::default() {
+        return revm_state::AccountExtension::new();
+    }
     revm_state::AccountExtension::new_with(extension.payload_length(), |mut out| {
         extension.encode_payload(&mut out);
         assert!(out.is_empty(), "account extension encoder wrote fewer bytes than payload_length");
@@ -612,6 +617,13 @@ mod tests {
         let info = AccountInfo::default();
         assert_eq!(Account::<TestExtension>::from(&info).extension, TestExtension::default());
         assert_eq!(Account::<TestExtension>::from(info).extension, TestExtension::default());
+
+        let account = Account::<TestExtension>::default();
+        assert!(account.is_empty());
+        let info = AccountInfo::from(account);
+        assert!(info.extension.is_empty());
+        assert!(info.is_empty());
+        assert_eq!(Account::<TestExtension>::from(info), account);
     }
 
     #[test]
