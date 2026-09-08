@@ -225,7 +225,11 @@ fn encode_extension<E: TrieAccountExtension>(extension: &E) -> revm_state::Accou
 }
 
 #[cfg(feature = "account-ext")]
-fn decode_extension<E: TrieAccountExtension>(bytes: &[u8]) -> E {
+fn decode_extension<E: TrieAccountExtension + Default>(bytes: &[u8]) -> E {
+    // Accounts created inside revm have no encoded payload until the chain sets one.
+    if bytes.is_empty() {
+        return E::default();
+    }
     let mut payload = bytes;
     let extension = E::decode_payload(&mut payload).expect("invalid account extension");
     assert!(payload.is_empty(), "account extension decoder left trailing bytes");
@@ -600,6 +604,14 @@ mod tests {
 
         let revm_account: AccountInfo = account.into();
         assert_eq!(Account::<TestExtension>::from(revm_account), account);
+    }
+
+    #[cfg(feature = "account-ext")]
+    #[test]
+    fn new_revm_account_uses_default_extension() {
+        let info = AccountInfo::default();
+        assert_eq!(Account::<TestExtension>::from(&info).extension, TestExtension::default());
+        assert_eq!(Account::<TestExtension>::from(info).extension, TestExtension::default());
     }
 
     #[test]
