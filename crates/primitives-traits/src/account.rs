@@ -76,7 +76,6 @@ struct LegacyAccount {
     bytecode_hash: Option<B256>,
 }
 
-#[cfg(feature = "reth-codec")]
 impl Account {
     /// Whether this build can carry chain-specific account payloads.
     pub const EXTENSIONS_ENABLED: bool = cfg!(feature = "account-ext");
@@ -94,11 +93,13 @@ impl Account {
     }
 
     /// Number of bytes used by the backwards-compatible account Compact flags.
+    #[cfg(feature = "reth-codec")]
     pub const fn bitflag_encoded_bytes() -> usize {
         LegacyAccount::bitflag_encoded_bytes()
     }
 
     /// Number of unused bits in the backwards-compatible account Compact flags.
+    #[cfg(feature = "reth-codec")]
     pub const fn bitflag_unused_bits() -> usize {
         LegacyAccount::bitflag_unused_bits()
     }
