@@ -81,6 +81,18 @@ impl Account {
     /// Whether this build can carry chain-specific account payloads.
     pub const EXTENSIONS_ENABLED: bool = cfg!(feature = "account-ext");
 
+    /// Whether this account has a nonempty chain-specific payload.
+    pub const fn has_extension(&self) -> bool {
+        #[cfg(feature = "account-ext")]
+        {
+            !self.extension.is_empty()
+        }
+        #[cfg(not(feature = "account-ext"))]
+        {
+            false
+        }
+    }
+
     /// Number of bytes used by the backwards-compatible account Compact flags.
     pub const fn bitflag_encoded_bytes() -> usize {
         LegacyAccount::bitflag_encoded_bytes()
@@ -203,7 +215,7 @@ impl Account {
 impl From<revm_state::Account> for Account {
     #[inline]
     fn from(value: revm_state::Account) -> Self {
-        Self::from_revm_account(&value)
+        Self::from(value.info)
     }
 }
 
