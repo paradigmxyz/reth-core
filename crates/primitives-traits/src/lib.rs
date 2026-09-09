@@ -131,7 +131,7 @@ pub use constants::gas_units::{format_gas, format_gas_throughput};
 pub mod account;
 #[cfg(feature = "account-ext")]
 pub use account::AccountExtension;
-pub use account::{Account, Bytecode};
+pub use account::{ensure_no_account_extensions, Account, AccountExtensionsUnsupported, Bytecode};
 
 pub mod receipt;
 pub use receipt::{FullReceipt, Receipt};

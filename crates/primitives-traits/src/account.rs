@@ -43,6 +43,19 @@ pub struct Account {
     pub extension: AccountExtension,
 }
 
+/// Returned when an operation requires an extensionless account representation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AccountExtensionsUnsupported;
+
+/// Rejects operations that cannot represent chain-specific account payloads.
+pub const fn ensure_no_account_extensions() -> Result<(), AccountExtensionsUnsupported> {
+    if Account::EXTENSIONS_ENABLED {
+        Err(AccountExtensionsUnsupported)
+    } else {
+        Ok(())
+    }
+}
+
 #[cfg(any(test, feature = "serde"))]
 impl serde::Serialize for Account {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
