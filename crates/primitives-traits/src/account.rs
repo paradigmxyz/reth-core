@@ -56,6 +56,16 @@ pub const fn ensure_no_account_extensions() -> Result<(), AccountExtensionsUnsup
     }
 }
 
+#[cfg(test)]
+mod account_extension_tests {
+    use super::{ensure_no_account_extensions, Account};
+
+    #[test]
+    fn rejects_extension_builds() {
+        assert_eq!(ensure_no_account_extensions().is_ok(), !Account::EXTENSIONS_ENABLED);
+    }
+}
+
 #[cfg(any(test, feature = "serde"))]
 impl serde::Serialize for Account {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
