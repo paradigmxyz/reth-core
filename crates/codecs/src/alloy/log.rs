@@ -86,7 +86,7 @@ mod tests {
             let log = Log { address: test_vector.address, data: log_data };
 
             let mut buf = Vec::<u8>::new();
-            let len = log.clone().to_compact(&mut buf);
+            let len = log.to_compact(&mut buf);
             assert_eq!(test_vector.encoded_bytes, buf);
 
             let (decoded, _) = Log::from_compact(&test_vector.encoded_bytes, len);
