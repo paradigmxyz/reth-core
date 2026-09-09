@@ -1,9 +1,10 @@
-use crate::{InMemorySize, MaybeCompact, MaybeSerde};
+use crate::InMemorySize;
 use alloy_consensus::constants::KECCAK_EMPTY;
 use alloy_genesis::GenesisAccount;
 use alloy_primitives::{keccak256, Bytes, B256, U256};
-use alloy_trie::{TrieAccount, TrieAccountExtension};
-use core::fmt::Debug;
+#[cfg(feature = "account-ext")]
+pub use alloy_trie::AccountExtension;
+use alloy_trie::TrieAccount;
 use derive_more::Deref;
 use revm_bytecode::{Bytecode as RevmBytecode, BytecodeDecodeError};
 use revm_state::AccountInfo;
@@ -24,105 +25,12 @@ pub mod compact_ids {
     pub const EIP7702_BYTECODE_ID: u8 = 4;
 }
 
-/// Default account extension that has no state and emits no encoded bytes.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct EmptyAccountExtension;
-
-impl TrieAccountExtension for EmptyAccountExtension {
-    fn payload_length(&self) -> usize {
-        0
-    }
-
-    fn encode_payload(&self, _out: &mut dyn alloy_rlp::BufMut) {}
-
-    fn decode_payload(_payload: &mut &[u8]) -> alloy_rlp::Result<Self> {
-        Ok(Self)
-    }
-}
-
-#[cfg(feature = "reth-codec")]
-impl reth_codecs::Compact for EmptyAccountExtension {
-    fn to_compact<B>(&self, _buf: &mut B) -> usize
-    where
-        B: bytes::BufMut + AsMut<[u8]>,
-    {
-        0
-    }
-
-    fn from_compact(buf: &[u8], _len: usize) -> (Self, &[u8]) {
-        (Self, buf)
-    }
-}
-
-impl InMemorySize for EmptyAccountExtension {
-    fn size(&self) -> usize {
-        0
-    }
-}
-
-/// Requirements for chain-specific account data.
-///
-/// Custom extensions require the `account-ext` feature. Without it, only
-/// [`EmptyAccountExtension`] is supported, so execution cannot silently discard account data.
-pub trait AccountExtension:
-    account_ext_support::Enabled
-    + Clone
-    + Debug
-    + Default
-    + Eq
-    + InMemorySize
-    + MaybeCompact
-    + MaybeSerde
-    + Send
-    + Sync
-    + TrieAccountExtension
-    + Unpin
-    + 'static
-{
-}
-
-impl<T> AccountExtension for T where
-    T: account_ext_support::Enabled
-        + Clone
-        + Debug
-        + Default
-        + Eq
-        + InMemorySize
-        + MaybeCompact
-        + MaybeSerde
-        + Send
-        + Sync
-        + TrieAccountExtension
-        + Unpin
-        + 'static
-{
-}
-
-mod account_ext_support {
-    // This sealed capability connects the generic persisted account type to revm's
-    // feature-gated payload field. Downstream types cannot bypass it: without
-    // account-ext, only the empty extension can satisfy AccountExtension (including
-    // NodePrimitives::AccountExtension and conversions to/from revm).
-    pub trait Enabled {}
-
-    #[cfg(feature = "account-ext")]
-    impl<T> Enabled for T {}
-
-    #[cfg(not(feature = "account-ext"))]
-    impl Enabled for super::EmptyAccountExtension {}
-}
-
 /// An Ethereum account with chain-specific extension data.
 #[cfg_attr(any(test, feature = "serde"), derive(serde::Deserialize))]
-#[cfg_attr(
-    any(test, feature = "serde"),
-    serde(bound(deserialize = "E: serde::Deserialize<'de> + Default"))
-)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[cfg_attr(not(feature = "account-ext"), derive(Copy))]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-pub struct Account<E = EmptyAccountExtension> {
+pub struct Account {
     /// Account nonce.
     pub nonce: u64,
     /// Account balance.
@@ -131,31 +39,28 @@ pub struct Account<E = EmptyAccountExtension> {
     pub bytecode_hash: Option<B256>,
     /// Chain-specific account data committed to the account trie leaf.
     #[cfg_attr(any(test, feature = "serde"), serde(default))]
-    pub extension: E,
+    #[cfg(feature = "account-ext")]
+    pub extension: AccountExtension,
 }
 
 #[cfg(any(test, feature = "serde"))]
-fn is_default<T: Default + PartialEq>(value: &T) -> bool {
-    value == &T::default()
-}
-
-#[cfg(any(test, feature = "serde"))]
-impl<E> serde::Serialize for Account<E>
-where
-    E: serde::Serialize + Default + PartialEq,
-{
+impl serde::Serialize for Account {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
         use serde::ser::SerializeStruct;
 
-        let include_extension = !serializer.is_human_readable() || !is_default(&self.extension);
+        #[cfg(feature = "account-ext")]
+        let include_extension = !serializer.is_human_readable() || !self.extension.is_empty();
+        #[cfg(not(feature = "account-ext"))]
+        let include_extension = false;
         let mut state =
             serializer.serialize_struct("Account", 3 + usize::from(include_extension))?;
         state.serialize_field("nonce", &self.nonce)?;
         state.serialize_field("balance", &self.balance)?;
         state.serialize_field("bytecode_hash", &self.bytecode_hash)?;
+        #[cfg(feature = "account-ext")]
         if include_extension {
             state.serialize_field("extension", &self.extension)?;
         }
@@ -172,7 +77,10 @@ struct LegacyAccount {
 }
 
 #[cfg(feature = "reth-codec")]
-impl Account<EmptyAccountExtension> {
+impl Account {
+    /// Whether this build can carry chain-specific account payloads.
+    pub const EXTENSIONS_ENABLED: bool = cfg!(feature = "account-ext");
+
     /// Number of bytes used by the backwards-compatible account Compact flags.
     pub const fn bitflag_encoded_bytes() -> usize {
         LegacyAccount::bitflag_encoded_bytes()
@@ -185,7 +93,7 @@ impl Account<EmptyAccountExtension> {
 }
 
 #[cfg(feature = "reth-codec")]
-impl<E: reth_codecs::Compact> reth_codecs::Compact for Account<E> {
+impl reth_codecs::Compact for Account {
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
         B: bytes::BufMut + AsMut<[u8]>,
@@ -195,53 +103,40 @@ impl<E: reth_codecs::Compact> reth_codecs::Compact for Account<E> {
             balance: self.balance,
             bytecode_hash: self.bytecode_hash,
         };
-        legacy.to_compact(buf) + self.extension.to_compact(buf)
+        let len = legacy.to_compact(buf);
+        #[cfg(feature = "account-ext")]
+        {
+            buf.put_slice(&self.extension);
+            len + self.extension.len()
+        }
+        #[cfg(not(feature = "account-ext"))]
+        len
     }
 
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
-        let (legacy, buf) = LegacyAccount::from_compact(buf, len);
-        let (extension, buf) = E::from_compact(buf, buf.len());
+        let (account_buf, rest) = buf.split_at(len);
+        let (legacy, buf) = LegacyAccount::from_compact(account_buf, len);
+        #[cfg(feature = "account-ext")]
+        let extension = AccountExtension::copy_from_slice(buf);
+        #[cfg(not(feature = "account-ext"))]
+        assert!(buf.is_empty(), "account extensions require account-ext");
         (
             Self {
                 nonce: legacy.nonce,
                 balance: legacy.balance,
                 bytecode_hash: legacy.bytecode_hash,
+                #[cfg(feature = "account-ext")]
                 extension,
             },
-            buf,
+            rest,
         )
     }
 }
 
 #[cfg(feature = "reth-codec")]
-reth_codecs::impl_compression_for_compact!(Account<E>);
+reth_codecs::impl_compression_for_compact!(Account);
 
-#[cfg(feature = "account-ext")]
-fn encode_extension<E: AccountExtension>(extension: &E) -> revm_state::AccountExtension {
-    // Match Account::is_empty and revm's byte-based emptiness check even when the
-    // extension's default has a nonempty RLP encoding.
-    if *extension == E::default() {
-        return revm_state::AccountExtension::new();
-    }
-    revm_state::AccountExtension::new_with(extension.payload_length(), |mut out| {
-        extension.encode_payload(&mut out);
-        assert!(out.is_empty(), "account extension encoder wrote fewer bytes than payload_length");
-    })
-}
-
-#[cfg(feature = "account-ext")]
-fn decode_extension<E: TrieAccountExtension + Default>(bytes: &[u8]) -> E {
-    // Accounts created inside revm have no encoded payload until the chain sets one.
-    if bytes.is_empty() {
-        return E::default();
-    }
-    let mut payload = bytes;
-    let extension = E::decode_payload(&mut payload).expect("invalid account extension");
-    assert!(payload.is_empty(), "account extension decoder left trailing bytes");
-    extension
-}
-
-impl<E: AccountExtension> Account<E> {
+impl Account {
     /// Whether the account has bytecode.
     #[inline]
     pub const fn has_bytecode(&self) -> bool {
@@ -252,10 +147,12 @@ impl<E: AccountExtension> Account<E> {
     /// && bytecode = None (or hash is [`KECCAK_EMPTY`]).
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.nonce == 0 &&
+        let empty = self.nonce == 0 &&
             self.balance.is_zero() &&
-            self.bytecode_hash.is_none_or(|hash| hash == KECCAK_EMPTY) &&
-            self.extension == E::default()
+            self.bytecode_hash.is_none_or(|hash| hash == KECCAK_EMPTY);
+        #[cfg(feature = "account-ext")]
+        let empty = empty && self.extension.is_empty();
+        empty
     }
 
     /// Returns an account bytecode's hash.
@@ -267,13 +164,20 @@ impl<E: AccountExtension> Account<E> {
 
     /// Converts the account into a trie account with the given storage root.
     #[inline]
-    pub fn into_trie_account(self, storage_root: B256) -> TrieAccount<E> {
-        let Self { nonce, balance, bytecode_hash, extension } = self;
+    pub fn into_trie_account(self, storage_root: B256) -> TrieAccount {
+        let Self {
+            nonce,
+            balance,
+            bytecode_hash,
+            #[cfg(feature = "account-ext")]
+            extension,
+        } = self;
         TrieAccount {
             nonce,
             balance,
             storage_root,
             code_hash: bytecode_hash.unwrap_or(KECCAK_EMPTY),
+            #[cfg(feature = "account-ext")]
             extension,
         }
     }
@@ -289,35 +193,45 @@ impl<E: AccountExtension> Account<E> {
                 Some(revm_account.info.code_hash)
             },
             #[cfg(feature = "account-ext")]
-            extension: decode_extension(&revm_account.info.extension),
-            #[cfg(not(feature = "account-ext"))]
-            extension: E::default(),
+            extension: AccountExtension::from_shared(
+                revm_account.info.extension.clone().into_shared(),
+            ),
         }
     }
 }
 
-impl<E: AccountExtension> From<revm_state::Account> for Account<E> {
+impl From<revm_state::Account> for Account {
     #[inline]
     fn from(value: revm_state::Account) -> Self {
         Self::from_revm_account(&value)
     }
 }
 
-impl<E: AccountExtension> From<TrieAccount<E>> for Account<E> {
-    fn from(value: TrieAccount<E>) -> Self {
+impl From<TrieAccount> for Account {
+    fn from(value: TrieAccount) -> Self {
         Self {
             balance: value.balance,
             nonce: value.nonce,
             bytecode_hash: (value.code_hash != KECCAK_EMPTY).then_some(value.code_hash),
+            #[cfg(feature = "account-ext")]
             extension: value.extension,
         }
     }
 }
 
-impl<E: AccountExtension> InMemorySize for Account<E> {
+impl InMemorySize for Account {
     #[inline]
     fn size(&self) -> usize {
-        size_of::<u64>() + size_of::<U256>() + size_of::<Option<B256>>() + self.extension.size()
+        let size = size_of::<u64>() + size_of::<U256>() + size_of::<Option<B256>>();
+        #[cfg(feature = "account-ext")]
+        let size = size +
+            size_of::<AccountExtension>() +
+            if self.extension.is_empty() {
+                0
+            } else {
+                2 * size_of::<usize>() + self.extension.len()
+            };
+        size
     }
 }
 
@@ -439,41 +353,38 @@ impl From<&GenesisAccount> for Account {
             nonce: value.nonce.unwrap_or_default(),
             balance: value.balance,
             bytecode_hash: value.code.as_ref().map(keccak256),
-            extension: EmptyAccountExtension,
+            #[cfg(feature = "account-ext")]
+            extension: value.extension.clone(),
         }
     }
 }
 
-impl<E: AccountExtension> From<AccountInfo> for Account<E> {
+impl From<AccountInfo> for Account {
     fn from(revm_acc: AccountInfo) -> Self {
         Self {
             balance: revm_acc.balance,
             nonce: revm_acc.nonce,
             bytecode_hash: (!revm_acc.is_empty_code_hash()).then_some(revm_acc.code_hash),
             #[cfg(feature = "account-ext")]
-            extension: decode_extension(&revm_acc.extension),
-            #[cfg(not(feature = "account-ext"))]
-            extension: E::default(),
+            extension: AccountExtension::from_shared(revm_acc.extension.into_shared()),
         }
     }
 }
 
-impl<E: AccountExtension> From<&AccountInfo> for Account<E> {
+impl From<&AccountInfo> for Account {
     fn from(revm_acc: &AccountInfo) -> Self {
         Self {
             balance: revm_acc.balance,
             nonce: revm_acc.nonce,
             bytecode_hash: (!revm_acc.is_empty_code_hash()).then_some(revm_acc.code_hash),
             #[cfg(feature = "account-ext")]
-            extension: decode_extension(&revm_acc.extension),
-            #[cfg(not(feature = "account-ext"))]
-            extension: E::default(),
+            extension: AccountExtension::from_shared(revm_acc.extension.clone().into_shared()),
         }
     }
 }
 
-impl<E: AccountExtension> From<Account<E>> for AccountInfo {
-    fn from(reth_acc: Account<E>) -> Self {
+impl From<Account> for AccountInfo {
+    fn from(reth_acc: Account) -> Self {
         Self {
             balance: reth_acc.balance,
             nonce: reth_acc.nonce,
@@ -481,7 +392,7 @@ impl<E: AccountExtension> From<Account<E>> for AccountInfo {
             code: None,
             account_id: None,
             #[cfg(feature = "account-ext")]
-            extension: encode_extension(&reth_acc.extension),
+            extension: revm_state::AccountExtension::from_shared(reth_acc.extension.into_shared()),
         }
     }
 }
@@ -492,7 +403,7 @@ mod serde_tests {
 
     #[test]
     fn empty_extension_is_not_serialized() {
-        let json = serde_json::to_value(Account::<EmptyAccountExtension>::default()).unwrap();
+        let json = serde_json::to_value(Account::default()).unwrap();
         assert!(!json.as_object().unwrap().contains_key("extension"));
     }
 }
@@ -505,125 +416,46 @@ mod tests {
     use reth_codecs::Compact;
     use revm_bytecode::JumpTable;
 
-    #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-    #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-    #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-    struct TestExtension(u64);
-
-    impl InMemorySize for TestExtension {
-        fn size(&self) -> usize {
-            size_of::<Self>()
-        }
-    }
-
-    impl TrieAccountExtension for TestExtension {
-        fn payload_length(&self) -> usize {
-            alloy_rlp::Encodable::length(&self.0)
-        }
-
-        fn encode_payload(&self, out: &mut dyn alloy_rlp::BufMut) {
-            alloy_rlp::Encodable::encode(&self.0, out);
-        }
-
-        fn decode_payload(payload: &mut &[u8]) -> alloy_rlp::Result<Self> {
-            alloy_rlp::Decodable::decode(payload).map(Self)
-        }
-    }
-
-    impl Compact for TestExtension {
-        fn to_compact<B>(&self, buf: &mut B) -> usize
-        where
-            B: bytes::BufMut + AsMut<[u8]>,
-        {
-            self.0.to_compact(buf)
-        }
-
-        fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
-            let (value, buf) = u64::from_compact(buf, len);
-            (Self(value), buf)
-        }
-    }
-
-    #[cfg(feature = "account-ext")]
-    static_assertions::assert_impl_all!(TestExtension: AccountExtension);
-    #[cfg(not(feature = "account-ext"))]
-    static_assertions::assert_not_impl_any!(TestExtension: AccountExtension);
-
     #[test]
-    fn test_account() {
-        let mut buf = vec![];
-        let mut acc: Account = Account::default();
-        let len = acc.to_compact(&mut buf);
-        assert_eq!(len, 2);
-
-        acc.balance = U256::from(2);
-        let len = acc.to_compact(&mut buf);
-        assert_eq!(len, 3);
-
-        acc.nonce = 2;
-        let len = acc.to_compact(&mut buf);
-        assert_eq!(len, 4);
-    }
-
-    #[test]
-    fn empty_extension_preserves_compact_encoding() {
-        let account: Account = Account {
-            nonce: 1,
-            balance: U256::from(2),
-            bytecode_hash: Some(B256::repeat_byte(3)),
-            extension: EmptyAccountExtension,
-        };
-        let legacy = LegacyAccount {
+    fn empty_extension_preserves_compact() {
+        let account = Account::default();
+        let mut actual = Vec::new();
+        let len = account.to_compact(&mut actual);
+        let mut legacy = Vec::new();
+        LegacyAccount {
             nonce: account.nonce,
             balance: account.balance,
             bytecode_hash: account.bytecode_hash,
-        };
-        let mut account_buf = Vec::new();
-        let mut legacy_buf = Vec::new();
-        account.to_compact(&mut account_buf);
-        legacy.to_compact(&mut legacy_buf);
-
-        assert_eq!(account_buf, legacy_buf);
+        }
+        .to_compact(&mut legacy);
+        assert_eq!(actual, legacy);
+        assert_eq!(Account::from_compact(&actual, len).0, account);
     }
 
-    #[test]
     #[cfg(feature = "account-ext")]
-    fn custom_extension_roundtrips_all_representations() {
+    #[test]
+    fn extension_roundtrips_without_copying_shared_payload() {
         let account = Account {
-            nonce: 1,
-            balance: U256::from(2),
-            bytecode_hash: None,
-            extension: TestExtension(42),
+            extension: AccountExtension::copy_from_slice(&[0x01, 0x02]),
+            ..Default::default()
         };
+        assert!(!account.is_empty());
+        let pointer = account.extension.as_ptr();
+        let revm = AccountInfo::from(account.clone());
+        assert_eq!(revm.extension.as_ptr(), pointer);
+        let restored = Account::from(revm);
+        assert_eq!(restored.extension.as_ptr(), pointer);
+        assert_eq!(restored, account);
+        let trie = account.clone().into_trie_account(alloy_trie::EMPTY_ROOT_HASH);
+        assert_eq!(trie.extension.as_ptr(), pointer);
+        assert_eq!(Account::from(trie), account);
+
         let mut compact = Vec::new();
         let len = account.to_compact(&mut compact);
-        assert_eq!(Account::<TestExtension>::from_compact(&compact, len).0, account);
-
-        let trie_account = account.into_trie_account(B256::repeat_byte(4));
-        let rlp = alloy_rlp::encode(trie_account);
-        assert_eq!(
-            <TrieAccount<TestExtension> as alloy_rlp::Decodable>::decode(&mut rlp.as_slice(),)
-                .unwrap(),
-            trie_account
-        );
-
-        let revm_account: AccountInfo = account.into();
-        assert_eq!(Account::<TestExtension>::from(revm_account), account);
-    }
-
-    #[cfg(feature = "account-ext")]
-    #[test]
-    fn new_revm_account_uses_default_extension() {
-        let info = AccountInfo::default();
-        assert_eq!(Account::<TestExtension>::from(&info).extension, TestExtension::default());
-        assert_eq!(Account::<TestExtension>::from(info).extension, TestExtension::default());
-
-        let account = Account::<TestExtension>::default();
-        assert!(account.is_empty());
-        let info = AccountInfo::from(account);
-        assert!(info.extension.is_empty());
-        assert!(info.is_empty());
-        assert_eq!(Account::<TestExtension>::from(info), account);
+        compact.extend_from_slice(&[99, 100]);
+        let (restored, rest) = Account::from_compact(&compact, len);
+        assert_eq!(restored, account);
+        assert_eq!(rest, &[99, 100]);
     }
 
     #[test]

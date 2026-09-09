@@ -88,11 +88,21 @@ impl Compact for AlloyGenesisAccount {
             }),
             private_key: self.private_key.as_ref(),
         };
-        account.to_compact(buf)
+        let len = account.to_compact(buf);
+        #[cfg(feature = "account-ext")]
+        {
+            buf.put_slice(&self.extension);
+            len + self.extension.len()
+        }
+        #[cfg(not(feature = "account-ext"))]
+        len
     }
 
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
-        let (account, _) = GenesisAccount::from_compact(buf, len);
+        let (account_buf, rest) = buf.split_at(len);
+        let (account, extension) = GenesisAccount::from_compact(account_buf, len);
+        #[cfg(not(feature = "account-ext"))]
+        assert!(extension.is_empty(), "account extensions require account-ext");
         let alloy_account = Self {
             nonce: account.nonce,
             balance: account.balance,
@@ -101,7 +111,9 @@ impl Compact for AlloyGenesisAccount {
                 .storage
                 .map(|s| s.entries.into_iter().map(|entry| (entry.key, entry.value)).collect()),
             private_key: account.private_key,
+            #[cfg(feature = "account-ext")]
+            extension: alloy_genesis::AccountExtension::copy_from_slice(extension),
         };
-        (alloy_account, buf)
+        (alloy_account, rest)
     }
 }

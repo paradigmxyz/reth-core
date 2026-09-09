@@ -68,7 +68,7 @@ serde.workspace = true
 serde_json.workspace = true
 
 [features]
-account-ext = ["revm-state/account-ext"]
+account-ext = ["revm-state/account-ext", "alloy-trie/account-ext", "alloy-genesis/account-ext", "reth-codecs?/account-ext"]
 default = ["std", "quanta"]
 std = [
     "alloy-consensus/std",
