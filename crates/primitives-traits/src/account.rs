@@ -26,7 +26,7 @@ pub mod compact_ids {
 }
 
 /// An Ethereum account with chain-specific extension data.
-#[cfg_attr(any(test, feature = "serde"), derive(serde::Deserialize))]
+#[cfg_attr(any(test, feature = "serde"), derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 #[cfg_attr(not(feature = "account-ext"), derive(Copy))]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
@@ -38,7 +38,10 @@ pub struct Account {
     /// Hash of the account's bytecode.
     pub bytecode_hash: Option<B256>,
     /// Chain-specific account data committed to the account trie leaf.
-    #[cfg_attr(any(test, feature = "serde"), serde(default))]
+    #[cfg_attr(
+        any(test, feature = "serde"),
+        serde(default, skip_serializing_if = "AccountExtension::is_empty")
+    )]
     #[cfg(feature = "account-ext")]
     pub extension: AccountExtension,
 }
@@ -63,31 +66,6 @@ mod account_extension_tests {
     #[test]
     fn rejects_extension_builds() {
         assert_eq!(ensure_no_account_extensions().is_ok(), !Account::EXTENSIONS_ENABLED);
-    }
-}
-
-#[cfg(any(test, feature = "serde"))]
-impl serde::Serialize for Account {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeStruct;
-
-        #[cfg(feature = "account-ext")]
-        let include_extension = !serializer.is_human_readable() || !self.extension.is_empty();
-        #[cfg(not(feature = "account-ext"))]
-        let include_extension = false;
-        let mut state =
-            serializer.serialize_struct("Account", 3 + usize::from(include_extension))?;
-        state.serialize_field("nonce", &self.nonce)?;
-        state.serialize_field("balance", &self.balance)?;
-        state.serialize_field("bytecode_hash", &self.bytecode_hash)?;
-        #[cfg(feature = "account-ext")]
-        if include_extension {
-            state.serialize_field("extension", &self.extension)?;
-        }
-        state.end()
     }
 }
 
@@ -454,6 +432,42 @@ mod serde_tests {
     fn empty_extension_is_not_serialized() {
         let json = serde_json::to_value(Account::default()).unwrap();
         assert!(!json.as_object().unwrap().contains_key("extension"));
+    }
+
+    #[test]
+    fn account_messagepack_compatibility() {
+        #[derive(serde::Serialize, serde::Deserialize)]
+        struct LegacyAccount {
+            nonce: u64,
+            balance: U256,
+            bytecode_hash: Option<B256>,
+        }
+        let account = Account { nonce: 7, balance: U256::from(42), ..Default::default() };
+        let legacy = LegacyAccount {
+            nonce: account.nonce,
+            balance: account.balance,
+            bytecode_hash: account.bytecode_hash,
+        };
+        let encoded = rmp_serde::to_vec(&account).unwrap();
+        assert_eq!(encoded, rmp_serde::to_vec(&legacy).unwrap());
+        assert_eq!(rmp_serde::from_slice::<Account>(&encoded).unwrap(), account);
+        let decoded: LegacyAccount = rmp_serde::from_slice(&encoded).unwrap();
+        assert_eq!(rmp_serde::to_vec(&decoded).unwrap(), encoded);
+
+        let accounts = alloc::vec![
+            account,
+            Account {
+                nonce: 9,
+                #[cfg(feature = "account-ext")]
+                extension: AccountExtension::copy_from_slice(&[0x82, 0xaa]),
+                ..Default::default()
+            },
+            Account::default(),
+        ];
+        let record = (accounts, 99u64);
+        let encoded = rmp_serde::to_vec(&record).unwrap();
+        let decoded: (alloc::vec::Vec<Account>, u64) = rmp_serde::from_slice(&encoded).unwrap();
+        assert_eq!(decoded, record);
     }
 }
 
