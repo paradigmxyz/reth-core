@@ -151,8 +151,8 @@ significant_drop_tightening = "allow"
 too_long_first_doc_paragraph = "allow"
 
 [patch.crates-io]
-alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "6e10b9ef" }
-alloy-trie = { git = "https://github.com/alloy-rs/trie", rev = "288294aa3fbe9e699bb2d8bd966bb7ff3ec59882" }
-revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "a4a7ac21e2d2ae6d319af0cf5cc05101ccc34ba6" }
-revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "a4a7ac21e2d2ae6d319af0cf5cc05101ccc34ba6" }
-revm-state = { git = "https://github.com/bluealloy/revm", rev = "a4a7ac21e2d2ae6d319af0cf5cc05101ccc34ba6" }
+alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "9ee4e28" }
+alloy-trie = { git = "https://github.com/alloy-rs/trie", rev = "169955f63e97166c0c64e3510fdea9ded21c3d59" }
+revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "d21d6c08d59d513f2192a0160399979093d9deb2" }
+revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "d21d6c08d59d513f2192a0160399979093d9deb2" }
+revm-state = { git = "https://github.com/bluealloy/revm", rev = "d21d6c08d59d513f2192a0160399979093d9deb2" }

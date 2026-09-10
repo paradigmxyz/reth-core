@@ -142,8 +142,14 @@ impl reth_codecs::Compact for Account {
         let len = legacy.to_compact(buf);
         #[cfg(feature = "account-ext")]
         {
+            if self.extension.is_empty() {
+                return len;
+            }
+            let extension_len = u16::try_from(self.extension.len())
+                .expect("account extension exceeds compact encoding limit");
+            buf.put_u16(extension_len);
             buf.put_slice(&self.extension);
-            len + self.extension.len()
+            len + 2 + self.extension.len()
         }
         #[cfg(not(feature = "account-ext"))]
         len
@@ -153,7 +159,14 @@ impl reth_codecs::Compact for Account {
         let (account_buf, rest) = buf.split_at(len);
         let (legacy, buf) = LegacyAccount::from_compact(account_buf, len);
         #[cfg(feature = "account-ext")]
-        let extension = AccountExtension::copy_from_slice(buf);
+        let extension = if buf.is_empty() {
+            AccountExtension::default()
+        } else {
+            let (length, bytes) = buf.split_at(2);
+            let extension_len = usize::from(u16::from_be_bytes(length.try_into().unwrap()));
+            assert_eq!(bytes.len(), extension_len, "invalid account extension length");
+            AccountExtension::copy_from_slice(bytes)
+        };
         #[cfg(not(feature = "account-ext"))]
         assert!(buf.is_empty(), "account extensions require account-ext");
         (
@@ -488,10 +501,29 @@ mod tests {
 
         let mut compact = Vec::new();
         let len = account.to_compact(&mut compact);
+        assert!(compact.ends_with(&[0, 2, 0x01, 0x02]));
         compact.extend_from_slice(&[99, 100]);
         let (restored, rest) = Account::from_compact(&compact, len);
         assert_eq!(restored, account);
         assert_eq!(rest, &[99, 100]);
+    }
+
+    #[cfg(feature = "account-ext")]
+    #[test]
+    fn compact_extension_length_boundaries() {
+        for len in [1, 256, 2048, usize::from(u16::MAX)] {
+            let account = Account {
+                extension: AccountExtension::from(alloc::vec![0x82; len]),
+                ..Default::default()
+            };
+            let mut compact = Vec::new();
+            let encoded_len = account.to_compact(&mut compact);
+            assert_eq!(
+                &compact[compact.len() - len - 2..compact.len() - len],
+                &(len as u16).to_be_bytes()
+            );
+            assert_eq!(Account::from_compact(&compact, encoded_len).0, account);
+        }
     }
 
     #[test]
