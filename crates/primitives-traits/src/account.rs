@@ -2,6 +2,8 @@ use crate::InMemorySize;
 use alloy_consensus::constants::KECCAK_EMPTY;
 use alloy_genesis::GenesisAccount;
 use alloy_primitives::{keccak256, Bytes, B256, U256};
+#[cfg(feature = "account-ext")]
+pub use alloy_trie::AccountExtension;
 use alloy_trie::TrieAccount;
 use derive_more::Deref;
 use revm_bytecode::{Bytecode as RevmBytecode, BytecodeDecodeError};
@@ -23,12 +25,11 @@ pub mod compact_ids {
     pub const EIP7702_BYTECODE_ID: u8 = 4;
 }
 
-/// An Ethereum account.
+/// An Ethereum account with chain-specific extension data.
 #[cfg_attr(any(test, feature = "serde"), derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+#[cfg_attr(not(feature = "account-ext"), derive(Copy))]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
-#[cfg_attr(feature = "reth-codec", derive(reth_codecs::Compact))]
-#[cfg_attr(feature = "reth-codec", reth_codecs::add_arbitrary_tests(compact))]
 pub struct Account {
     /// Account nonce.
     pub nonce: u64,
@@ -36,7 +37,131 @@ pub struct Account {
     pub balance: U256,
     /// Hash of the account's bytecode.
     pub bytecode_hash: Option<B256>,
+    /// Chain-specific account data committed to the account trie leaf.
+    #[cfg_attr(
+        any(test, feature = "serde"),
+        serde(default, skip_serializing_if = "AccountExtension::is_empty")
+    )]
+    #[cfg(feature = "account-ext")]
+    pub extension: AccountExtension,
 }
+
+/// Returned when an operation requires an extensionless account representation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AccountExtensionsUnsupported;
+
+/// Rejects operations that cannot represent chain-specific account payloads.
+pub const fn ensure_no_account_extensions() -> Result<(), AccountExtensionsUnsupported> {
+    if Account::EXTENSIONS_ENABLED {
+        Err(AccountExtensionsUnsupported)
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod account_extension_tests {
+    use super::{ensure_no_account_extensions, Account};
+
+    #[test]
+    fn rejects_extension_builds() {
+        assert_eq!(ensure_no_account_extensions().is_ok(), !Account::EXTENSIONS_ENABLED);
+    }
+}
+
+#[cfg(feature = "reth-codec")]
+#[derive(reth_codecs::Compact)]
+struct LegacyAccount {
+    nonce: u64,
+    balance: U256,
+    bytecode_hash: Option<B256>,
+}
+
+impl Account {
+    /// Whether this build can carry chain-specific account payloads.
+    pub const EXTENSIONS_ENABLED: bool = cfg!(feature = "account-ext");
+
+    /// Whether this account has a nonempty chain-specific payload.
+    pub const fn has_extension(&self) -> bool {
+        #[cfg(feature = "account-ext")]
+        {
+            !self.extension.is_empty()
+        }
+        #[cfg(not(feature = "account-ext"))]
+        {
+            false
+        }
+    }
+
+    /// Number of bytes used by the backwards-compatible account Compact flags.
+    #[cfg(feature = "reth-codec")]
+    pub const fn bitflag_encoded_bytes() -> usize {
+        LegacyAccount::bitflag_encoded_bytes()
+    }
+
+    /// Number of unused bits in the backwards-compatible account Compact flags.
+    #[cfg(feature = "reth-codec")]
+    pub const fn bitflag_unused_bits() -> usize {
+        LegacyAccount::bitflag_unused_bits()
+    }
+}
+
+#[cfg(feature = "reth-codec")]
+impl reth_codecs::Compact for Account {
+    fn to_compact<B>(&self, buf: &mut B) -> usize
+    where
+        B: bytes::BufMut + AsMut<[u8]>,
+    {
+        let legacy = LegacyAccount {
+            nonce: self.nonce,
+            balance: self.balance,
+            bytecode_hash: self.bytecode_hash,
+        };
+        let len = legacy.to_compact(buf);
+        #[cfg(feature = "account-ext")]
+        {
+            if self.extension.is_empty() {
+                return len;
+            }
+            let extension_len = u16::try_from(self.extension.len())
+                .expect("account extension exceeds compact encoding limit");
+            buf.put_u16(extension_len);
+            buf.put_slice(&self.extension);
+            len + 2 + self.extension.len()
+        }
+        #[cfg(not(feature = "account-ext"))]
+        len
+    }
+
+    fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
+        let (account_buf, rest) = buf.split_at(len);
+        let (legacy, buf) = LegacyAccount::from_compact(account_buf, len);
+        #[cfg(feature = "account-ext")]
+        let extension = if buf.is_empty() {
+            AccountExtension::default()
+        } else {
+            let (length, bytes) = buf.split_at(2);
+            let extension_len = usize::from(u16::from_be_bytes(length.try_into().unwrap()));
+            assert_eq!(bytes.len(), extension_len, "invalid account extension length");
+            AccountExtension::copy_from_slice(bytes)
+        };
+        #[cfg(not(feature = "account-ext"))]
+        assert!(buf.is_empty(), "account extensions require account-ext");
+        (
+            Self {
+                nonce: legacy.nonce,
+                balance: legacy.balance,
+                bytecode_hash: legacy.bytecode_hash,
+                #[cfg(feature = "account-ext")]
+                extension,
+            },
+            rest,
+        )
+    }
+}
+
+#[cfg(feature = "reth-codec")]
+reth_codecs::impl_compression_for_compact!(Account);
 
 impl Account {
     /// Whether the account has bytecode.
@@ -49,9 +174,12 @@ impl Account {
     /// && bytecode = None (or hash is [`KECCAK_EMPTY`]).
     #[inline]
     pub fn is_empty(&self) -> bool {
-        self.nonce == 0 &&
+        let empty = self.nonce == 0 &&
             self.balance.is_zero() &&
-            self.bytecode_hash.is_none_or(|hash| hash == KECCAK_EMPTY)
+            self.bytecode_hash.is_none_or(|hash| hash == KECCAK_EMPTY);
+        #[cfg(feature = "account-ext")]
+        let empty = empty && self.extension.is_empty();
+        empty
     }
 
     /// Returns an account bytecode's hash.
@@ -64,12 +192,20 @@ impl Account {
     /// Converts the account into a trie account with the given storage root.
     #[inline]
     pub fn into_trie_account(self, storage_root: B256) -> TrieAccount {
-        let Self { nonce, balance, bytecode_hash } = self;
+        let Self {
+            nonce,
+            balance,
+            bytecode_hash,
+            #[cfg(feature = "account-ext")]
+            extension,
+        } = self;
         TrieAccount {
             nonce,
             balance,
             storage_root,
             code_hash: bytecode_hash.unwrap_or(KECCAK_EMPTY),
+            #[cfg(feature = "account-ext")]
+            extension,
         }
     }
 
@@ -83,6 +219,10 @@ impl Account {
             } else {
                 Some(revm_account.info.code_hash)
             },
+            #[cfg(feature = "account-ext")]
+            extension: AccountExtension::from_shared(
+                revm_account.info.extension.clone().into_shared(),
+            ),
         }
     }
 }
@@ -90,17 +230,18 @@ impl Account {
 impl From<revm_state::Account> for Account {
     #[inline]
     fn from(value: revm_state::Account) -> Self {
-        Self::from_revm_account(&value)
+        Self::from(value.info)
     }
 }
 
 impl From<TrieAccount> for Account {
-    #[inline]
     fn from(value: TrieAccount) -> Self {
         Self {
             balance: value.balance,
             nonce: value.nonce,
             bytecode_hash: (value.code_hash != KECCAK_EMPTY).then_some(value.code_hash),
+            #[cfg(feature = "account-ext")]
+            extension: value.extension,
         }
     }
 }
@@ -108,12 +249,18 @@ impl From<TrieAccount> for Account {
 impl InMemorySize for Account {
     #[inline]
     fn size(&self) -> usize {
-        size_of::<Self>()
+        let size = size_of::<u64>() + size_of::<U256>() + size_of::<Option<B256>>();
+        #[cfg(feature = "account-ext")]
+        let size = size +
+            size_of::<AccountExtension>() +
+            if self.extension.is_empty() {
+                0
+            } else {
+                2 * size_of::<usize>() + self.extension.len()
+            };
+        size
     }
 }
-
-#[cfg(feature = "reth-codec")]
-reth_codecs::impl_compression_for_compact!(Account);
 
 /// Bytecode for an account.
 ///
@@ -233,6 +380,8 @@ impl From<&GenesisAccount> for Account {
             nonce: value.nonce.unwrap_or_default(),
             balance: value.balance,
             bytecode_hash: value.code.as_ref().map(keccak256),
+            #[cfg(feature = "account-ext")]
+            extension: value.extension.clone(),
         }
     }
 }
@@ -243,6 +392,8 @@ impl From<AccountInfo> for Account {
             balance: revm_acc.balance,
             nonce: revm_acc.nonce,
             bytecode_hash: (!revm_acc.is_empty_code_hash()).then_some(revm_acc.code_hash),
+            #[cfg(feature = "account-ext")]
+            extension: AccountExtension::from_shared(revm_acc.extension.into_shared()),
         }
     }
 }
@@ -253,6 +404,8 @@ impl From<&AccountInfo> for Account {
             balance: revm_acc.balance,
             nonce: revm_acc.nonce,
             bytecode_hash: (!revm_acc.is_empty_code_hash()).then_some(revm_acc.code_hash),
+            #[cfg(feature = "account-ext")]
+            extension: AccountExtension::from_shared(revm_acc.extension.clone().into_shared()),
         }
     }
 }
@@ -265,36 +418,131 @@ impl From<Account> for AccountInfo {
             code_hash: reth_acc.bytecode_hash.unwrap_or(KECCAK_EMPTY),
             code: None,
             account_id: None,
+            #[cfg(feature = "account-ext")]
+            extension: revm_state::AccountExtension::from_shared(reth_acc.extension.into_shared()),
         }
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+
+    #[test]
+    fn empty_extension_is_not_serialized() {
+        let json = serde_json::to_value(Account::default()).unwrap();
+        assert!(!json.as_object().unwrap().contains_key("extension"));
+    }
+
+    #[test]
+    fn account_messagepack_compatibility() {
+        #[derive(serde::Serialize, serde::Deserialize)]
+        struct LegacyAccount {
+            nonce: u64,
+            balance: U256,
+            bytecode_hash: Option<B256>,
+        }
+        let account = Account { nonce: 7, balance: U256::from(42), ..Default::default() };
+        let legacy = LegacyAccount {
+            nonce: account.nonce,
+            balance: account.balance,
+            bytecode_hash: account.bytecode_hash,
+        };
+        let encoded = rmp_serde::to_vec(&account).unwrap();
+        assert_eq!(encoded, rmp_serde::to_vec(&legacy).unwrap());
+        assert_eq!(rmp_serde::from_slice::<Account>(&encoded).unwrap(), account);
+        let decoded: LegacyAccount = rmp_serde::from_slice(&encoded).unwrap();
+        assert_eq!(rmp_serde::to_vec(&decoded).unwrap(), encoded);
+
+        let accounts = alloc::vec![
+            account,
+            Account {
+                nonce: 9,
+                #[cfg(feature = "account-ext")]
+                extension: AccountExtension::copy_from_slice(&[0x82, 0xaa]),
+                ..Default::default()
+            },
+            Account::default(),
+        ];
+        let record = (accounts, 99u64);
+        let encoded = rmp_serde::to_vec(&record).unwrap();
+        let decoded: (alloc::vec::Vec<Account>, u64) = rmp_serde::from_slice(&encoded).unwrap();
+        assert_eq!(decoded, record);
     }
 }
 
 #[cfg(all(test, feature = "std", feature = "reth-codec"))]
 mod tests {
     use super::*;
+    use alloc::vec::Vec;
     use alloy_primitives::{hex_literal::hex, B256, U256};
     use reth_codecs::Compact;
     use revm_bytecode::JumpTable;
 
     #[test]
-    fn test_account() {
-        let mut buf = vec![];
-        let mut acc = Account::default();
-        let len = acc.to_compact(&mut buf);
-        assert_eq!(len, 2);
+    fn empty_extension_preserves_compact() {
+        let account = Account::default();
+        let mut actual = Vec::new();
+        let len = account.to_compact(&mut actual);
+        let mut legacy = Vec::new();
+        LegacyAccount {
+            nonce: account.nonce,
+            balance: account.balance,
+            bytecode_hash: account.bytecode_hash,
+        }
+        .to_compact(&mut legacy);
+        assert_eq!(actual, legacy);
+        assert_eq!(Account::from_compact(&actual, len).0, account);
+    }
 
-        acc.balance = U256::from(2);
-        let len = acc.to_compact(&mut buf);
-        assert_eq!(len, 3);
+    #[cfg(feature = "account-ext")]
+    #[test]
+    fn extension_roundtrips_without_copying_shared_payload() {
+        let account = Account {
+            extension: AccountExtension::copy_from_slice(&[0x01, 0x02]),
+            ..Default::default()
+        };
+        assert!(!account.is_empty());
+        let pointer = account.extension.as_ptr();
+        let revm = AccountInfo::from(account.clone());
+        assert_eq!(revm.extension.as_ptr(), pointer);
+        let restored = Account::from(revm);
+        assert_eq!(restored.extension.as_ptr(), pointer);
+        assert_eq!(restored, account);
+        let trie = account.clone().into_trie_account(alloy_trie::EMPTY_ROOT_HASH);
+        assert_eq!(trie.extension.as_ptr(), pointer);
+        assert_eq!(Account::from(trie), account);
 
-        acc.nonce = 2;
-        let len = acc.to_compact(&mut buf);
-        assert_eq!(len, 4);
+        let mut compact = Vec::new();
+        let len = account.to_compact(&mut compact);
+        assert!(compact.ends_with(&[0, 2, 0x01, 0x02]));
+        compact.extend_from_slice(&[99, 100]);
+        let (restored, rest) = Account::from_compact(&compact, len);
+        assert_eq!(restored, account);
+        assert_eq!(rest, &[99, 100]);
+    }
+
+    #[cfg(feature = "account-ext")]
+    #[test]
+    fn compact_extension_length_boundaries() {
+        for len in [1, 256, 2048, usize::from(u16::MAX)] {
+            let account = Account {
+                extension: AccountExtension::from(alloc::vec![0x82; len]),
+                ..Default::default()
+            };
+            let mut compact = Vec::new();
+            let encoded_len = account.to_compact(&mut compact);
+            assert_eq!(
+                &compact[compact.len() - len - 2..compact.len() - len],
+                &(len as u16).to_be_bytes()
+            );
+            assert_eq!(Account::from_compact(&compact, encoded_len).0, account);
+        }
     }
 
     #[test]
     fn test_empty_account() {
-        let mut acc = Account { nonce: 0, balance: U256::ZERO, bytecode_hash: None };
+        let mut acc = Account::default();
         // Nonce 0, balance 0, and bytecode hash set to None is considered empty.
         assert!(acc.is_empty());
 
@@ -350,32 +598,30 @@ mod tests {
     #[test]
     fn test_account_has_bytecode() {
         // Account with no bytecode (None)
-        let acc_no_bytecode = Account { nonce: 1, balance: U256::from(1000), bytecode_hash: None };
+        let acc_no_bytecode: Account =
+            Account { nonce: 1, balance: U256::from(1000), ..Default::default() };
         assert!(!acc_no_bytecode.has_bytecode(), "Account should not have bytecode");
 
         // Account with bytecode hash set to KECCAK_EMPTY (should have bytecode)
-        let acc_empty_bytecode =
-            Account { nonce: 1, balance: U256::from(1000), bytecode_hash: Some(KECCAK_EMPTY) };
+        let acc_empty_bytecode: Account =
+            Account { bytecode_hash: Some(KECCAK_EMPTY), ..Default::default() };
         assert!(acc_empty_bytecode.has_bytecode(), "Account should have bytecode");
 
         // Account with a non-empty bytecode hash
-        let acc_with_bytecode = Account {
-            nonce: 1,
-            balance: U256::from(1000),
-            bytecode_hash: Some(B256::from_slice(&[0x11u8; 32])),
-        };
+        let acc_with_bytecode: Account =
+            Account { bytecode_hash: Some(B256::from_slice(&[0x11u8; 32])), ..Default::default() };
         assert!(acc_with_bytecode.has_bytecode(), "Account should have bytecode");
     }
 
     #[test]
     fn test_account_get_bytecode_hash() {
         // Account with no bytecode (should return KECCAK_EMPTY)
-        let acc_no_bytecode = Account { nonce: 0, balance: U256::ZERO, bytecode_hash: None };
+        let acc_no_bytecode: Account = Default::default();
         assert_eq!(acc_no_bytecode.get_bytecode_hash(), KECCAK_EMPTY, "Should return KECCAK_EMPTY");
 
         // Account with bytecode hash set to KECCAK_EMPTY
-        let acc_empty_bytecode =
-            Account { nonce: 1, balance: U256::from(1000), bytecode_hash: Some(KECCAK_EMPTY) };
+        let acc_empty_bytecode: Account =
+            Account { bytecode_hash: Some(KECCAK_EMPTY), ..Default::default() };
         assert_eq!(
             acc_empty_bytecode.get_bytecode_hash(),
             KECCAK_EMPTY,
@@ -384,8 +630,8 @@ mod tests {
 
         // Account with a valid bytecode hash
         let bytecode_hash = B256::from_slice(&[0x11u8; 32]);
-        let acc_with_bytecode =
-            Account { nonce: 1, balance: U256::from(1000), bytecode_hash: Some(bytecode_hash) };
+        let acc_with_bytecode: Account =
+            Account { bytecode_hash: Some(bytecode_hash), ..Default::default() };
         assert_eq!(
             acc_with_bytecode.get_bytecode_hash(),
             bytecode_hash,

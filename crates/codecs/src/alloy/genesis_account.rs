@@ -22,7 +22,7 @@ pub(crate) struct GenesisAccountRef<'a> {
     /// The account's storage at genesis.
     storage: Option<StorageEntries>,
     /// The account's private key. Should only be used for testing.
-    private_key: Option<&'a B256>,
+    private_key: Option<B256>,
 }
 
 /// Acts as bridge which simplifies Compact implementation for
@@ -86,13 +86,29 @@ impl Compact for AlloyGenesisAccount {
                     .map(|(key, value)| StorageEntry { key: *key, value: *value })
                     .collect(),
             }),
-            private_key: self.private_key.as_ref(),
+            private_key: self.private_key,
         };
-        account.to_compact(buf)
+        let len = account.to_compact(buf);
+        #[cfg(feature = "account-ext")]
+        {
+            if self.extension.is_empty() {
+                return len;
+            }
+            let extension_len = u16::try_from(self.extension.len())
+                .expect("account extension exceeds compact encoding limit");
+            buf.put_u16(extension_len);
+            buf.put_slice(&self.extension);
+            len + 2 + self.extension.len()
+        }
+        #[cfg(not(feature = "account-ext"))]
+        len
     }
 
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
-        let (account, _) = GenesisAccount::from_compact(buf, len);
+        let (account_buf, rest) = buf.split_at(len);
+        let (account, extension) = GenesisAccount::from_compact(account_buf, len);
+        #[cfg(not(feature = "account-ext"))]
+        assert!(extension.is_empty(), "account extensions require account-ext");
         let alloy_account = Self {
             nonce: account.nonce,
             balance: account.balance,
@@ -101,7 +117,58 @@ impl Compact for AlloyGenesisAccount {
                 .storage
                 .map(|s| s.entries.into_iter().map(|entry| (entry.key, entry.value)).collect()),
             private_key: account.private_key,
+            #[cfg(feature = "account-ext")]
+            extension: if extension.is_empty() {
+                Default::default()
+            } else {
+                let (length, bytes) = extension.split_at(2);
+                let extension_len = usize::from(u16::from_be_bytes(length.try_into().unwrap()));
+                assert_eq!(bytes.len(), extension_len, "invalid account extension length");
+                alloy_genesis::AccountExtension::copy_from_slice(bytes)
+            },
         };
-        (alloy_account, buf)
+        (alloy_account, rest)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn private_key_compact_roundtrip() {
+        let account = AlloyGenesisAccount {
+            private_key: Some(B256::repeat_byte(42)),
+            ..Default::default()
+        };
+        let mut encoded = Vec::new();
+        let len = account.to_compact(&mut encoded);
+        encoded.push(99);
+
+        let (decoded, rest) = AlloyGenesisAccount::from_compact(&encoded, len);
+        assert_eq!(decoded, account);
+        assert_eq!(rest, &[99]);
+    }
+
+    #[cfg(feature = "account-ext")]
+    #[test]
+    fn raw_extension_compact_roundtrip() {
+        for payload in [&[][..], &[0x82, 0xaa][..], &[42; 2048][..]] {
+            let account = AlloyGenesisAccount {
+                extension: alloy_genesis::AccountExtension::copy_from_slice(payload),
+                ..Default::default()
+            };
+            let mut encoded = Vec::new();
+            let len = account.to_compact(&mut encoded);
+            if !payload.is_empty() {
+                let mut suffix = (payload.len() as u16).to_be_bytes().to_vec();
+                suffix.extend_from_slice(payload);
+                assert!(encoded.ends_with(&suffix));
+            }
+            encoded.extend_from_slice(&[99]);
+            let (decoded, rest) = AlloyGenesisAccount::from_compact(&encoded, len);
+            assert_eq!(decoded, account);
+            assert_eq!(rest, &[99]);
+        }
     }
 }
