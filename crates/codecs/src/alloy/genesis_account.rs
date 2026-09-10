@@ -22,7 +22,7 @@ pub(crate) struct GenesisAccountRef<'a> {
     /// The account's storage at genesis.
     storage: Option<StorageEntries>,
     /// The account's private key. Should only be used for testing.
-    private_key: Option<&'a B256>,
+    private_key: Option<B256>,
 }
 
 /// Acts as bridge which simplifies Compact implementation for
@@ -86,7 +86,7 @@ impl Compact for AlloyGenesisAccount {
                     .map(|(key, value)| StorageEntry { key: *key, value: *value })
                     .collect(),
             }),
-            private_key: self.private_key.as_ref(),
+            private_key: self.private_key,
         };
         let len = account.to_compact(buf);
         #[cfg(feature = "account-ext")]
@@ -131,10 +131,26 @@ impl Compact for AlloyGenesisAccount {
     }
 }
 
-#[cfg(all(test, feature = "account-ext"))]
-mod extension_tests {
+#[cfg(test)]
+mod tests {
     use super::*;
 
+    #[test]
+    fn private_key_compact_roundtrip() {
+        let account = AlloyGenesisAccount {
+            private_key: Some(B256::repeat_byte(42)),
+            ..Default::default()
+        };
+        let mut encoded = Vec::new();
+        let len = account.to_compact(&mut encoded);
+        encoded.push(99);
+
+        let (decoded, rest) = AlloyGenesisAccount::from_compact(&encoded, len);
+        assert_eq!(decoded, account);
+        assert_eq!(rest, &[99]);
+    }
+
+    #[cfg(feature = "account-ext")]
     #[test]
     fn raw_extension_compact_roundtrip() {
         for payload in [&[][..], &[0x82, 0xaa][..], &[42; 2048][..]] {
