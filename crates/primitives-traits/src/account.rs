@@ -87,6 +87,28 @@ impl Account {
     }
 }
 
+#[cfg(feature = "eip7928")]
+impl Account {
+    /// Applies the post-block account fields an EIP-7928 block access list entry recorded on top
+    /// of this account.
+    ///
+    /// A block access list only carries the fields a block changed, so `self` must be the account
+    /// as it was before the block; fields the entry leaves out keep their current values. Use
+    /// [`Account::default`] as the base when the account did not exist.
+    ///
+    /// An account left without code ends up with [`KECCAK_EMPTY`] rather than `None`. Both encode
+    /// the same trie leaf, see [`Self::into_trie_account`].
+    pub fn apply_bal_info(&mut self, info: alloy_eip7928::BalAccountInfo) {
+        if let Some(balance) = info.balance {
+            self.balance = balance;
+        }
+        if let Some(nonce) = info.nonce {
+            self.nonce = nonce;
+        }
+        self.bytecode_hash = info.code_hash.or(self.bytecode_hash).or(Some(KECCAK_EMPTY));
+    }
+}
+
 impl From<revm_state::Account> for Account {
     #[inline]
     fn from(value: revm_state::Account) -> Self {
@@ -391,5 +413,50 @@ mod tests {
             bytecode_hash,
             "Should return the bytecode hash"
         );
+    }
+}
+
+#[cfg(all(test, feature = "eip7928"))]
+mod bal_tests {
+    use super::*;
+    use alloy_eip7928::BalAccountInfo;
+
+    fn account() -> Account {
+        Account { nonce: 4, balance: U256::from(9), bytecode_hash: Some(B256::repeat_byte(1)) }
+    }
+
+    #[test]
+    fn untouched_fields_keep_their_values() {
+        let mut acc = account();
+        acc.apply_bal_info(BalAccountInfo { balance: Some(U256::from(99)), ..Default::default() });
+
+        assert_eq!(acc.balance, U256::from(99));
+        assert_eq!(acc.nonce, 4);
+        assert_eq!(acc.bytecode_hash, Some(B256::repeat_byte(1)));
+    }
+
+    #[test]
+    fn a_new_account_defaults_its_untouched_fields() {
+        let mut acc = Account::default();
+        acc.apply_bal_info(BalAccountInfo { balance: Some(U256::from(1)), ..Default::default() });
+
+        assert_eq!(acc.nonce, 0);
+        assert_eq!(acc.bytecode_hash, Some(KECCAK_EMPTY));
+    }
+
+    #[test]
+    fn changed_code_replaces_the_previous_hash() {
+        let mut acc = account();
+        acc.apply_bal_info(BalAccountInfo { code_hash: Some(KECCAK_EMPTY), ..Default::default() });
+
+        assert_eq!(acc.bytecode_hash, Some(KECCAK_EMPTY));
+    }
+
+    #[test]
+    fn an_account_funded_then_emptied_is_left_empty() {
+        let mut acc = Account::default();
+        acc.apply_bal_info(BalAccountInfo { balance: Some(U256::ZERO), ..Default::default() });
+
+        assert!(acc.is_empty());
     }
 }

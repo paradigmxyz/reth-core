@@ -28,6 +28,7 @@ alloy-eips = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
 alloy-signer = { version = "2.0", default-features = false }
 alloy-genesis = { version = "2.0", default-features = false }
+alloy-eip7928 = { version = "0.4.9", default-features = false }
 revm-primitives = { version = "43.0.0", default-features = false }
 revm-bytecode = { version = "43.0.0", default-features = false }
 revm-state = { version = "43.0.0", default-features = false }
@@ -150,3 +151,7 @@ redundant_pub_crate = "allow"
 significant_drop_in_scrutinee = "allow"
 significant_drop_tightening = "allow"
 too_long_first_doc_paragraph = "allow"
+
+[patch.crates-io]
+# https://github.com/alloy-rs/eips/pull/127
+alloy-eip7928 = { git = "https://github.com/alloy-rs/eips", rev = "cb3e57ef42c3ca13800b637f05586b882fc0a72c" }

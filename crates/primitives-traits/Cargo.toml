@@ -17,6 +17,7 @@ reth-codecs = { workspace = true, optional = true }
 
 # ethereum
 alloy-consensus = { workspace = true, features = ["k256"] }
+alloy-eip7928 = { workspace = true, optional = true }
 alloy-eips.workspace = true
 alloy-genesis.workspace = true
 alloy-primitives = { workspace = true, features = ["k256"] }
@@ -70,6 +71,7 @@ serde_json.workspace = true
 default = ["std", "quanta"]
 std = [
     "alloy-consensus/std",
+    "alloy-eip7928?/std",
     "alloy-eips/std",
     "alloy-genesis/std",
     "alloy-primitives/std",
@@ -96,6 +98,7 @@ test-utils = [
 arbitrary = [
     "std",
     "alloy-consensus/arbitrary",
+    "alloy-eip7928?/arbitrary",
     "alloy-primitives/arbitrary",
     "dep:arbitrary",
     "dep:proptest",
@@ -112,6 +115,7 @@ arbitrary = [
 serde = [
     "dep:serde",
     "alloy-consensus/serde",
+    "alloy-eip7928?/serde",
     "alloy-eips/serde",
     "alloy-primitives/serde",
     "bytes/serde",
@@ -137,3 +141,4 @@ rayon = [
 ]
 dashmap = ["dep:dashmap"]
 rpc-compat = ["alloy-rpc-types-eth"]
+eip7928 = ["dep:alloy-eip7928"]
