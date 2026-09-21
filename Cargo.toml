@@ -28,7 +28,7 @@ alloy-eips = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
 alloy-signer = { version = "2.0", default-features = false }
 alloy-genesis = { version = "2.0", default-features = false }
-evm2 = { git = "https://github.com/mediocregopher/evm2", rev = "dcaa81850f0027bba88c7bf48b88e415c8499d1d", default-features = false }
+evm2 = { git = "https://github.com/mediocregopher/evm2", rev = "ea7dae5359ae58a68b75ccd290c1456f2eafaf10", default-features = false }
 alloy-eip7928 = { version = "0.4.10", default-features = false }
 
 # crypto
