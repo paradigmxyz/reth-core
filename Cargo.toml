@@ -22,7 +22,7 @@ reth-zstd-compressors = { version = "0.7.1", path = "crates/zstd-compressors", d
 alloy-primitives = { version = "1.5.6", default-features = false, features = ["map-foldhash"] }
 alloy-rlp = { version = "0.3.13", default-features = false, features = ["core-net"] }
 alloy-rpc-types-eth = { version = "2.0", default-features = false }
-alloy-trie = { version = "0.9.4", default-features = false }
+alloy-trie = { version = "0.9.6", default-features = false }
 alloy-consensus = { version = "2.0", default-features = false }
 alloy-eips = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
@@ -152,8 +152,7 @@ significant_drop_tightening = "allow"
 too_long_first_doc_paragraph = "allow"
 
 [patch.crates-io]
-alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "a974a1305" }
-alloy-trie = { git = "https://github.com/alloy-rs/trie", rev = "30d6e84aa756ac70d61b7b7ccb7dba5924a88cb8" }
-revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "cd58cf3055e9068e72ef6f4c1ffdf92828ef0cb5" }
-revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "cd58cf3055e9068e72ef6f4c1ffdf92828ef0cb5" }
-revm-state = { git = "https://github.com/bluealloy/revm", rev = "cd58cf3055e9068e72ef6f4c1ffdf92828ef0cb5" }
+alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "5d6ba78c17146f97388958dcdb9c092ed6c13575" }
+revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "d54b6a7eafdad62dc38221c40f09b72673ed7c79" }
+revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "d54b6a7eafdad62dc38221c40f09b72673ed7c79" }
+revm-state = { git = "https://github.com/bluealloy/revm", rev = "d54b6a7eafdad62dc38221c40f09b72673ed7c79" }
