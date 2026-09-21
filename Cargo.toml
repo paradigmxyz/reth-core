@@ -28,7 +28,7 @@ alloy-eips = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
 alloy-signer = { version = "2.0", default-features = false }
 alloy-genesis = { version = "2.0", default-features = false }
-evm2 = { git = "https://github.com/alloy-rs/evm2", rev = "93348876e0b2f5c6670a3cee0058a4a61b69e74f", default-features = false }
+evm2 = { git = "https://github.com/mediocregopher/evm2", rev = "4b68d01599043ce7a86706fe5a15d82d752dffc5", default-features = false }
 alloy-eip7928 = { version = "0.4.10", default-features = false }
 
 # crypto
@@ -90,7 +90,6 @@ equatable_if_let = "warn"
 explicit_into_iter_loop = "warn"
 explicit_iter_loop = "warn"
 flat_map_option = "warn"
-from_iter_instead_of_collect = "warn"
 if_not_else = "warn"
 if_then_some_else_none = "warn"
 implicit_clone = "warn"
@@ -149,3 +148,7 @@ redundant_pub_crate = "allow"
 significant_drop_in_scrutinee = "allow"
 significant_drop_tightening = "allow"
 too_long_first_doc_paragraph = "allow"
+
+[patch.crates-io]
+alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "a974a1305" }
+alloy-trie = { git = "https://github.com/alloy-rs/trie", rev = "30d6e84aa756ac70d61b7b7ccb7dba5924a88cb8" }
