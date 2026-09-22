@@ -124,7 +124,7 @@ impl Compact for AlloyGenesisAccount {
                 let (length, bytes) = extension.split_at(2);
                 let extension_len = usize::from(u16::from_be_bytes(length.try_into().unwrap()));
                 assert_eq!(bytes.len(), extension_len, "invalid account extension length");
-                alloy_genesis::AccountExtension::copy_from_slice(bytes)
+                alloy_trie::AccountExtension::copy_from_slice(bytes)
             },
         };
         (alloy_account, rest)
@@ -137,10 +137,8 @@ mod tests {
 
     #[test]
     fn private_key_compact_roundtrip() {
-        let account = AlloyGenesisAccount {
-            private_key: Some(B256::repeat_byte(42)),
-            ..Default::default()
-        };
+        let account =
+            AlloyGenesisAccount { private_key: Some(B256::repeat_byte(42)), ..Default::default() };
         let mut encoded = Vec::new();
         let len = account.to_compact(&mut encoded);
         encoded.push(99);
@@ -155,7 +153,7 @@ mod tests {
     fn raw_extension_compact_roundtrip() {
         for payload in [&[][..], &[0x82, 0xaa][..], &[42; 2048][..]] {
             let account = AlloyGenesisAccount {
-                extension: alloy_genesis::AccountExtension::copy_from_slice(payload),
+                extension: alloy_trie::AccountExtension::copy_from_slice(payload),
                 ..Default::default()
             };
             let mut encoded = Vec::new();

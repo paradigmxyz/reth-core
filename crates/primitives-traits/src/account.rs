@@ -2,8 +2,6 @@ use crate::InMemorySize;
 use alloy_consensus::constants::KECCAK_EMPTY;
 use alloy_genesis::GenesisAccount;
 use alloy_primitives::{keccak256, Bytes, B256, U256};
-#[cfg(feature = "account-ext")]
-pub use alloy_trie::AccountExtension;
 use alloy_trie::TrieAccount;
 use derive_more::Deref;
 use revm_bytecode::{Bytecode as RevmBytecode, BytecodeDecodeError};
@@ -40,10 +38,10 @@ pub struct Account {
     /// Chain-specific account data committed to the account trie leaf.
     #[cfg_attr(
         any(test, feature = "serde"),
-        serde(default, skip_serializing_if = "AccountExtension::is_empty")
+        serde(default, skip_serializing_if = "alloy_trie::AccountExtension::is_empty")
     )]
     #[cfg(feature = "account-ext")]
-    pub extension: AccountExtension,
+    pub extension: alloy_trie::AccountExtension,
 }
 
 /// Returned when an operation requires an extensionless account representation.
@@ -138,12 +136,12 @@ impl reth_codecs::Compact for Account {
         let (legacy, buf) = LegacyAccount::from_compact(account_buf, len);
         #[cfg(feature = "account-ext")]
         let extension = if buf.is_empty() {
-            AccountExtension::default()
+            alloy_trie::AccountExtension::default()
         } else {
             let (length, bytes) = buf.split_at(2);
             let extension_len = usize::from(u16::from_be_bytes(length.try_into().unwrap()));
             assert_eq!(bytes.len(), extension_len, "invalid account extension length");
-            AccountExtension::copy_from_slice(bytes)
+            alloy_trie::AccountExtension::copy_from_slice(bytes)
         };
         #[cfg(not(feature = "account-ext"))]
         assert!(buf.is_empty(), "account extensions require account-ext");
@@ -220,7 +218,7 @@ impl Account {
                 Some(revm_account.info.code_hash)
             },
             #[cfg(feature = "account-ext")]
-            extension: AccountExtension::from_shared(
+            extension: alloy_trie::AccountExtension::from_shared(
                 revm_account.info.extension.clone().into_shared(),
             ),
         }
@@ -274,7 +272,7 @@ impl InMemorySize for Account {
         let size = size_of::<u64>() + size_of::<U256>() + size_of::<Option<B256>>();
         #[cfg(feature = "account-ext")]
         let size = size +
-            size_of::<AccountExtension>() +
+            size_of::<alloy_trie::AccountExtension>() +
             if self.extension.is_empty() {
                 0
             } else {
@@ -415,7 +413,7 @@ impl From<AccountInfo> for Account {
             nonce: revm_acc.nonce,
             bytecode_hash: (!revm_acc.is_empty_code_hash()).then_some(revm_acc.code_hash),
             #[cfg(feature = "account-ext")]
-            extension: AccountExtension::from_shared(revm_acc.extension.into_shared()),
+            extension: alloy_trie::AccountExtension::from_shared(revm_acc.extension.into_shared()),
         }
     }
 }
@@ -427,7 +425,9 @@ impl From<&AccountInfo> for Account {
             nonce: revm_acc.nonce,
             bytecode_hash: (!revm_acc.is_empty_code_hash()).then_some(revm_acc.code_hash),
             #[cfg(feature = "account-ext")]
-            extension: AccountExtension::from_shared(revm_acc.extension.clone().into_shared()),
+            extension: alloy_trie::AccountExtension::from_shared(
+                revm_acc.extension.clone().into_shared(),
+            ),
         }
     }
 }
@@ -481,7 +481,7 @@ mod serde_tests {
             Account {
                 nonce: 9,
                 #[cfg(feature = "account-ext")]
-                extension: AccountExtension::copy_from_slice(&[0x82, 0xaa]),
+                extension: alloy_trie::AccountExtension::copy_from_slice(&[0x82, 0xaa]),
                 ..Default::default()
             },
             Account::default(),
@@ -521,7 +521,7 @@ mod tests {
     #[test]
     fn extension_roundtrips_without_copying_shared_payload() {
         let account = Account {
-            extension: AccountExtension::copy_from_slice(&[0x01, 0x02]),
+            extension: alloy_trie::AccountExtension::copy_from_slice(&[0x01, 0x02]),
             ..Default::default()
         };
         assert!(!account.is_empty());
@@ -549,7 +549,7 @@ mod tests {
     fn compact_extension_length_boundaries() {
         for len in [1, 256, 2048, usize::from(u16::MAX)] {
             let account = Account {
-                extension: AccountExtension::from(alloc::vec![0x82; len]),
+                extension: alloy_trie::AccountExtension::from(alloc::vec![0x82; len]),
                 ..Default::default()
             };
             let mut compact = Vec::new();

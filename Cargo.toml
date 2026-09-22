@@ -152,7 +152,7 @@ significant_drop_tightening = "allow"
 too_long_first_doc_paragraph = "allow"
 
 [patch.crates-io]
-alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "5d6ba78c17146f97388958dcdb9c092ed6c13575" }
+alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "d2b86e1b6a29a0ca6cd40d67c56914d871315a45" }
 revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "d54b6a7eafdad62dc38221c40f09b72673ed7c79" }
 revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "d54b6a7eafdad62dc38221c40f09b72673ed7c79" }
 revm-state = { git = "https://github.com/bluealloy/revm", rev = "d54b6a7eafdad62dc38221c40f09b72673ed7c79" }
