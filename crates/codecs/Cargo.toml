@@ -44,6 +44,7 @@ proptest-arbitrary-interop.workspace = true
 rstest.workspace = true
 
 [features]
+account-ext = ["alloy-genesis?/account-ext"]
 default = ["std", "alloy"]
 std = [
     "alloy-primitives/std",
