@@ -31,7 +31,7 @@ alloy-genesis = { version = "2.4.2", default-features = false }
 alloy-eip7928 = { version = "0.4.10", default-features = false }
 revm-primitives = { version = "43.0.0", default-features = false }
 revm-bytecode = { version = "43.0.0", default-features = false }
-revm-state = { version = "43.0.0", default-features = false }
+revm-state = { version = "43.0.1", default-features = false }
 
 # crypto
 secp256k1 = { version = "0.30", default-features = false, features = ["global-context", "recovery"] }
@@ -153,6 +153,3 @@ too_long_first_doc_paragraph = "allow"
 
 [patch.crates-io]
 alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "d2b86e1b6a29a0ca6cd40d67c56914d871315a45" }
-revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "d54b6a7eafdad62dc38221c40f09b72673ed7c79" }
-revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "d54b6a7eafdad62dc38221c40f09b72673ed7c79" }
-revm-state = { git = "https://github.com/bluealloy/revm", rev = "d54b6a7eafdad62dc38221c40f09b72673ed7c79" }
