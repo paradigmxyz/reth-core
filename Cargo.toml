@@ -27,7 +27,7 @@ alloy-consensus = { version = "2.0", default-features = false }
 alloy-eips = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
 alloy-signer = { version = "2.0", default-features = false }
-alloy-genesis = { version = "2.4.2", default-features = false }
+alloy-genesis = { version = "2.5.0", default-features = false }
 alloy-eip7928 = { version = "0.4.10", default-features = false }
 revm-primitives = { version = "43.0.0", default-features = false }
 revm-bytecode = { version = "43.0.0", default-features = false }
@@ -150,6 +150,3 @@ redundant_pub_crate = "allow"
 significant_drop_in_scrutinee = "allow"
 significant_drop_tightening = "allow"
 too_long_first_doc_paragraph = "allow"
-
-[patch.crates-io]
-alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "d2b86e1b6a29a0ca6cd40d67c56914d871315a45" }
