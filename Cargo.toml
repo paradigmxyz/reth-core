@@ -5,30 +5,30 @@ resolver = "3"
 [workspace.package]
 edition = "2024"
 rust-version = "1.96"
-version = "0.7.1"
+version = "0.8.1"
 license = "MIT OR Apache-2.0"
 homepage = "https://paradigmxyz.github.io/reth"
 repository = "https://github.com/paradigmxyz/reth-core"
 
 [workspace.dependencies]
 # internal
-reth-codecs = { version = "0.7.1", path = "crates/codecs", default-features = false }
-reth-codecs-derive = { version = "0.7.1", path = "crates/codecs-derive" }
-reth-primitives-traits = { version = "0.7.1", path = "crates/primitives-traits", default-features = false }
-reth-rpc-traits = { version = "0.7.1", path = "crates/rpc-traits", default-features = false }
-reth-zstd-compressors = { version = "0.7.1", path = "crates/zstd-compressors", default-features = false }
+reth-codecs = { version = "0.8.1", path = "crates/codecs", default-features = false }
+reth-codecs-derive = { version = "0.8.1", path = "crates/codecs-derive" }
+reth-primitives-traits = { version = "0.8.1", path = "crates/primitives-traits", default-features = false }
+reth-rpc-traits = { version = "0.8.1", path = "crates/rpc-traits", default-features = false }
+reth-zstd-compressors = { version = "0.8.1", path = "crates/zstd-compressors", default-features = false }
 
 # eth/alloy
 alloy-primitives = { version = "1.5.6", default-features = false, features = ["map-foldhash"] }
 alloy-rlp = { version = "0.3.13", default-features = false, features = ["core-net"] }
 alloy-rpc-types-eth = { version = "2.0", default-features = false }
-alloy-trie = { version = "0.9.4", default-features = false }
+alloy-trie = { version = "0.9.6", default-features = false }
 alloy-consensus = { version = "2.0", default-features = false }
 alloy-eips = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
 alloy-signer = { version = "2.0", default-features = false }
-alloy-genesis = { version = "2.0", default-features = false }
-evm2 = { git = "https://github.com/alloy-rs/evm2", rev = "93348876e0b2f5c6670a3cee0058a4a61b69e74f", default-features = false }
+alloy-genesis = { version = "2.5.0", default-features = false }
+evm2 = { git = "https://github.com/alloy-rs/evm2", rev = "bde5ef34de90c00f3677a83de8d7bbbcc697e143", default-features = false }
 alloy-eip7928 = { version = "0.4.10", default-features = false }
 
 # crypto
@@ -90,7 +90,6 @@ equatable_if_let = "warn"
 explicit_into_iter_loop = "warn"
 explicit_iter_loop = "warn"
 flat_map_option = "warn"
-from_iter_instead_of_collect = "warn"
 if_not_else = "warn"
 if_then_some_else_none = "warn"
 implicit_clone = "warn"
