@@ -44,7 +44,7 @@ derive_more = { version = "2", default-features = false, features = ["full"] }
 modular-bitfield = "0.13.1"
 once_cell = { version = "1.19", default-features = false, features = ["critical-section"] }
 parity-scale-codec = { version = "3.2.1", features = ["bytes"] }
-quanta = "0.12"
+quanta = "0.13"
 rayon = "1.7"
 serde = { version = "1.0", default-features = false }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
