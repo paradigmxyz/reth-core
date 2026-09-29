@@ -45,7 +45,8 @@ pub struct Account {
 }
 
 /// Returned when an operation requires an extensionless account representation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[error("account extensions are not supported")]
 pub struct AccountExtensionsUnsupported;
 
 /// Rejects operations that cannot represent chain-specific account payloads.
@@ -59,11 +60,20 @@ pub const fn ensure_no_account_extensions() -> Result<(), AccountExtensionsUnsup
 
 #[cfg(test)]
 mod account_extension_tests {
-    use super::{ensure_no_account_extensions, Account};
+    use super::{ensure_no_account_extensions, Account, AccountExtensionsUnsupported};
+    use alloc::string::ToString;
 
     #[test]
     fn rejects_extension_builds() {
         assert_eq!(ensure_no_account_extensions().is_ok(), !Account::EXTENSIONS_ENABLED);
+    }
+
+    #[test]
+    fn unsupported_extensions_display() {
+        assert_eq!(
+            AccountExtensionsUnsupported.to_string(),
+            "account extensions are not supported"
+        );
     }
 }
 
