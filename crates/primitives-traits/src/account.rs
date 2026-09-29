@@ -85,6 +85,19 @@ mod account_extension_tests {
         assert_eq!(account.bytecode_hash, Some(B256::repeat_byte(1)));
         assert!(!account.has_extension());
     }
+
+    #[cfg(feature = "account-ext")]
+    #[test]
+    fn with_extension_sets_extension() {
+        let extension = alloy_trie::AccountExtension::copy_from_slice(&[0x82, 0xaa]);
+        let account = Account::new(7, U256::from(42), Some(B256::repeat_byte(1)))
+            .with_extension(extension.clone());
+        assert_eq!(account.nonce, 7);
+        assert_eq!(account.balance, U256::from(42));
+        assert_eq!(account.bytecode_hash, Some(B256::repeat_byte(1)));
+        assert_eq!(account.extension, extension);
+        assert!(account.has_extension());
+    }
 }
 
 #[cfg(feature = "reth-codec")]
@@ -99,7 +112,10 @@ impl Account {
     /// Whether this build can carry chain-specific account payloads.
     pub const EXTENSIONS_ENABLED: bool = cfg!(feature = "account-ext");
 
-    /// Creates an account with an empty chain-specific payload.
+    /// Creates an account with an empty extension.
+    ///
+    /// The extension carries chain-specific data and only exists with the `account-ext` feature.
+    /// Use `with_extension` to attach one.
     pub const fn new(nonce: u64, balance: U256, bytecode_hash: Option<B256>) -> Self {
         Self {
             nonce,
@@ -108,6 +124,15 @@ impl Account {
             #[cfg(feature = "account-ext")]
             extension: alloy_trie::AccountExtension::new(),
         }
+    }
+
+    /// Returns this account with the given chain-specific extension.
+    ///
+    /// This replaces the extension, which [`Self::new`] leaves empty.
+    #[cfg(feature = "account-ext")]
+    pub fn with_extension(mut self, extension: impl Into<alloy_trie::AccountExtension>) -> Self {
+        self.extension = extension.into();
+        self
     }
 
     /// Whether this account has a nonempty chain-specific payload.
