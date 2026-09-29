@@ -62,6 +62,7 @@ pub const fn ensure_no_account_extensions() -> Result<(), AccountExtensionsUnsup
 mod account_extension_tests {
     use super::{ensure_no_account_extensions, Account, AccountExtensionsUnsupported};
     use alloc::string::ToString;
+    use alloy_primitives::{B256, U256};
 
     #[test]
     fn rejects_extension_builds() {
@@ -74,6 +75,15 @@ mod account_extension_tests {
             AccountExtensionsUnsupported.to_string(),
             "account extensions are not supported"
         );
+    }
+
+    #[test]
+    fn new_has_no_extension() {
+        let account = Account::new(7, U256::from(42), Some(B256::repeat_byte(1)));
+        assert_eq!(account.nonce, 7);
+        assert_eq!(account.balance, U256::from(42));
+        assert_eq!(account.bytecode_hash, Some(B256::repeat_byte(1)));
+        assert!(!account.has_extension());
     }
 }
 
@@ -88,6 +98,17 @@ struct LegacyAccount {
 impl Account {
     /// Whether this build can carry chain-specific account payloads.
     pub const EXTENSIONS_ENABLED: bool = cfg!(feature = "account-ext");
+
+    /// Creates an account with an empty chain-specific payload.
+    pub const fn new(nonce: u64, balance: U256, bytecode_hash: Option<B256>) -> Self {
+        Self {
+            nonce,
+            balance,
+            bytecode_hash,
+            #[cfg(feature = "account-ext")]
+            extension: alloy_trie::AccountExtension::new(),
+        }
+    }
 
     /// Whether this account has a nonempty chain-specific payload.
     pub const fn has_extension(&self) -> bool {
