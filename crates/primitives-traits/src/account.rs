@@ -436,17 +436,29 @@ reth_codecs::impl_compression_for_compact!(Bytecode);
 #[cfg(feature = "reth-codec")]
 fn pad_dupn_immediate(bytes: Bytes, original_len: usize) -> Bytes {
     let is_dupn = |opcode: u8| opcode.wrapping_sub(op::DUPN) < 3;
-    let required = match &bytes[..original_len] {
-        [.., last] if is_dupn(*last) => 2,
-        [.., prev, op::STOP] if is_dupn(*prev) => 1,
-        _ => 0,
+    let code = &bytes[..original_len];
+    let (index, required) = match code {
+        [.., last] if is_dupn(*last) => (code.len() - 1, 2),
+        [.., prev, op::STOP] if is_dupn(*prev) => (code.len() - 2, 1),
+        _ => return bytes,
     };
-    if bytes.len() - original_len >= required {
+    if bytes.len() - original_len >= required || !starts_instruction(code, index) {
         return bytes;
     }
     let mut padded = bytes.to_vec();
     padded.resize(original_len + required, 0);
     padded.into()
+}
+
+/// Returns whether `index` is the first byte of an instruction rather than `PUSH` data.
+#[cfg(feature = "reth-codec")]
+const fn starts_instruction(code: &[u8], index: usize) -> bool {
+    let mut pc = 0;
+    while pc < index {
+        let push_len = code[pc].wrapping_sub(op::PUSH1).saturating_add(1);
+        pc += 1 + if push_len <= 32 { push_len as usize } else { 0 };
+    }
+    pc == index
 }
 
 impl From<&GenesisAccount> for Account {
@@ -681,6 +693,8 @@ mod tests {
             (hex!("0000000460005b0002000000000000000304").to_vec(), hex!("60005b").to_vec()),
             (hex!("00000003ffff0002000000000000000200").to_vec(), hex!("ffff").to_vec()),
             (hex!("00000003e6000002000000000000000100").to_vec(), hex!("e6").to_vec()),
+            (hex!("0000000360e800020000000000000002" "00").to_vec(), hex!("60e8").to_vec()),
+            (hex!("0000000360e800020000000000000003" "00").to_vec(), hex!("60e800").to_vec()),
         ] {
             let (decoded, remainder) = Bytecode::from_compact(&encoded, encoded.len());
             assert_eq!(decoded.original_byte_slice(), original);
