@@ -4,31 +4,33 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
-rust-version = "1.93"
-version = "0.5.2"
+rust-version = "1.96"
+version = "0.8.2"
 license = "MIT OR Apache-2.0"
 homepage = "https://paradigmxyz.github.io/reth"
 repository = "https://github.com/paradigmxyz/reth-core"
 
 [workspace.dependencies]
 # internal
-reth-codecs = { version = "0.5.2", path = "crates/codecs", default-features = false }
-reth-codecs-derive = { version = "0.5.2", path = "crates/codecs-derive" }
-reth-primitives-traits = { version = "0.5.2", path = "crates/primitives-traits", default-features = false }
-reth-rpc-traits = { version = "0.5.2", path = "crates/rpc-traits", default-features = false }
-reth-zstd-compressors = { version = "0.5.2", path = "crates/zstd-compressors", default-features = false }
+reth-codecs = { version = "0.8.2", path = "crates/codecs", default-features = false }
+reth-codecs-derive = { version = "0.8.2", path = "crates/codecs-derive" }
+reth-primitives-traits = { version = "0.8.2", path = "crates/primitives-traits", default-features = false }
+reth-rpc-traits = { version = "0.8.2", path = "crates/rpc-traits", default-features = false }
+reth-zstd-compressors = { version = "0.8.2", path = "crates/zstd-compressors", default-features = false }
 
 # eth/alloy
 alloy-primitives = { version = "1.5.6", default-features = false, features = ["map-foldhash"] }
 alloy-rlp = { version = "0.3.13", default-features = false, features = ["core-net"] }
 alloy-rpc-types-eth = { version = "2.0", default-features = false }
-alloy-trie = { version = "0.9.4", default-features = false }
+alloy-trie = { version = "0.9.6", default-features = false }
 alloy-consensus = { version = "2.0", default-features = false }
 alloy-eips = { version = "2.0", default-features = false }
 alloy-network = { version = "2.0", default-features = false }
 alloy-signer = { version = "2.0", default-features = false }
-alloy-genesis = { version = "2.0", default-features = false }
-evm2 = { git = "https://github.com/alloy-rs/evm2", rev = "a428621afa3b441f10346e278c55430c8b49b4c6", default-features = false }
+alloy-genesis = { version = "2.5.0", default-features = false }
+alloy-eip7928 = { version = "0.4.10", default-features = false }
+
+evm2 = { git = "https://github.com/alloy-rs/evm2", rev = "23b49a5de13becb00311fedafb12991690465726", default-features = false }
 
 # crypto
 secp256k1 = { version = "0.30", default-features = false, features = ["global-context", "recovery"] }
@@ -41,7 +43,7 @@ derive_more = { version = "2", default-features = false, features = ["full"] }
 modular-bitfield = "0.13.1"
 once_cell = { version = "1.19", default-features = false, features = ["critical-section"] }
 parity-scale-codec = { version = "3.2.1", features = ["bytes"] }
-quanta = "0.12"
+quanta = "0.13"
 rayon = "1.7"
 serde = { version = "1.0", default-features = false }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
@@ -59,7 +61,8 @@ syn = "2.0"
 
 # test deps
 test-fuzz = "7"
-proptest = "1.6"
+# proptest-arbitrary-interop 0.1 uses the rand 0.9 API.
+proptest = ">=1.6, <1.12"
 proptest-arbitrary-interop = "0.1"
 rstest = "0.26.1"
 similar-asserts = { version = "1.5.0", features = ["serde"] }
@@ -89,7 +92,6 @@ equatable_if_let = "warn"
 explicit_into_iter_loop = "warn"
 explicit_iter_loop = "warn"
 flat_map_option = "warn"
-from_iter_instead_of_collect = "warn"
 if_not_else = "warn"
 if_then_some_else_none = "warn"
 implicit_clone = "warn"

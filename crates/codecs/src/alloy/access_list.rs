@@ -91,7 +91,7 @@ mod tests {
 
         for test_vector in test_vectors {
             let mut buf = Vec::<u8>::new();
-            let len = test_vector.access_list.clone().to_compact(&mut buf);
+            let len = test_vector.access_list.to_compact(&mut buf);
             assert_eq!(test_vector.encoded_bytes.0, buf);
 
             let (decoded, _) = AccessList::from_compact(&test_vector.encoded_bytes, len);

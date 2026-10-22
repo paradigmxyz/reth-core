@@ -129,7 +129,9 @@ pub use constants::gas_units::{format_gas, format_gas_throughput};
 
 /// Minimal account
 pub mod account;
-pub use account::{Account, Bytecode};
+pub use account::{ensure_no_account_extensions, Account, AccountExtensionsUnsupported, Bytecode};
+#[cfg(feature = "account-ext")]
+pub use alloy_trie::AccountExtension;
 
 pub mod receipt;
 pub use receipt::{FullReceipt, Receipt};

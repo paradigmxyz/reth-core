@@ -18,7 +18,7 @@ Core traits and libraries extracted from [Reth](https://github.com/paradigmxyz/r
 
 ## Supported Rust Versions (MSRV)
 
-The current MSRV (minimum supported rust version) is 1.93.
+The current MSRV (minimum supported rust version) is 1.94.1.
 
 ## Contributing
 

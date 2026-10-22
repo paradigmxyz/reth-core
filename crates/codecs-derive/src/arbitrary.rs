@@ -58,6 +58,9 @@ pub fn maybe_generate_tests(
                     // ensure buffer is fully consumed by decode
                     assert!(b.is_empty(), "buffer was not consumed entirely");
 
+                    let mut encoded = Vec::new();
+                    decoded.encode(&mut encoded);
+                    assert_eq!(encoded, buf, "maybe_generate_tests::rlp_encode_decode_encode");
                 }
             });
             additional_tests.push(quote! {

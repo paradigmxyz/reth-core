@@ -5,11 +5,100 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.2](https://github.com/paradigmxyz/reth-core/releases/tag/v0.8.2) - 2026-09-29
+
+### Dependencies
+
+- Bump gh-actions to d5402286 ([#58](https://github.com/paradigmxyz/reth-core/issues/58))
+- [deps] Bump quanta to 0.13 ([#56](https://github.com/paradigmxyz/reth-core/issues/56))
+
+### Features
+
+- [primitives-traits] Add Account::new and with_extension ([#60](https://github.com/paradigmxyz/reth-core/issues/60))
+- [primitives-traits] Impl Error for AccountExtensionsUnsupported ([#59](https://github.com/paradigmxyz/reth-core/issues/59))
+
+### Miscellaneous Tasks
+
+- [ci] Migrate deny and refresh gh-actions ([#55](https://github.com/paradigmxyz/reth-core/issues/55))
+- Update gh-actions and deny workflow pins ([#57](https://github.com/paradigmxyz/reth-core/issues/57))
+- Remove alloy-genesis git patch ([#54](https://github.com/paradigmxyz/reth-core/issues/54))
+
+## [0.8.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.8.1) - 2026-09-24
+
+### Bug Fixes
+
+- [rpc] Preserve block size in responses ([#53](https://github.com/paradigmxyz/reth-core/issues/53))
+
+### Miscellaneous Tasks
+
+- Release 0.8.1
+
+## [0.8.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.8.0) - 2026-09-24
+
+### Dependencies
+
+- [ci] Protect dependency installs with Aegis ([#49](https://github.com/paradigmxyz/reth-core/issues/49))
+
+### Features
+
+- [primitives] Support account extensions ([#45](https://github.com/paradigmxyz/reth-core/issues/45))
+
+### Miscellaneous Tasks
+
+- Release 0.8.0
+- Use released revm account extension support ([#52](https://github.com/paradigmxyz/reth-core/issues/52))
+
+### Refactor
+
+- [rpc] Remove block size from header conversion ([#44](https://github.com/paradigmxyz/reth-core/issues/44))
+
+## [0.7.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.7.1) - 2026-09-14
+
+### Bug Fixes
+
+- [codecs] Remove redundant clones in codec tests ([#46](https://github.com/paradigmxyz/reth-core/issues/46))
+
+### Features
+
+- [primitives-traits] Add Account::apply_bal_info ([#47](https://github.com/paradigmxyz/reth-core/issues/47))
+
+### Miscellaneous Tasks
+
+- Release 0.7.1
+
+## [0.7.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.7.0) - 2026-08-26
+
+### Dependencies
+
+- Bump revm to 43.0.0 ([#43](https://github.com/paradigmxyz/reth-core/issues/43))
+
+### Miscellaneous Tasks
+
+- Release 0.7.0
+
+## [0.6.0](https://github.com/paradigmxyz/reth-core/releases/tag/v0.6.0) - 2026-07-31
+
+### Dependencies
+
+- Bump revm to 42.0.0 ([#41](https://github.com/paradigmxyz/reth-core/issues/41))
+
+### Miscellaneous Tasks
+
+- Release 0.6.0
+
+### Testing
+
+- [codecs] Assert rlp encoded byte roundtrips ([#39](https://github.com/paradigmxyz/reth-core/issues/39))
+
 ## [0.5.2](https://github.com/paradigmxyz/reth-core/releases/tag/v0.5.2) - 2026-06-18
 
 ### Features
 
 - [primitives-traits] Impl PartialEq for SealedOrRecoveredBlock ([#34](https://github.com/paradigmxyz/reth-core/issues/34))
+
+### Miscellaneous Tasks
+
+- Release 0.5.2
 
 ## [0.5.1](https://github.com/paradigmxyz/reth-core/releases/tag/v0.5.1) - 2026-06-15
 
