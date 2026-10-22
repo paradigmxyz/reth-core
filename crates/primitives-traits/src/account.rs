@@ -726,6 +726,11 @@ mod tests {
             assert_eq!(decoded.original_byte_slice(), original);
             assert_eq!(decoded.bytes_slice(), padded);
             assert!(remainder.is_empty());
+
+            let mut reencoded = Vec::new();
+            decoded.to_compact(&mut reencoded);
+            let (redecoded, _) = Bytecode::from_compact(&reencoded, reencoded.len());
+            assert_eq!(redecoded.bytes_slice(), padded);
         }
     }
 
