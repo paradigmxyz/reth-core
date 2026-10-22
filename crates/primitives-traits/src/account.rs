@@ -10,9 +10,6 @@ use evm2::{
 };
 
 #[cfg(feature = "reth-codec")]
-use evm2::interpreter::op;
-
-#[cfg(feature = "reth-codec")]
 /// Identifiers used in [`Compact`](reth_codecs::Compact) encoding of [`Bytecode`].
 pub mod compact_ids {
     /// Identifier for legacy raw bytecode.
@@ -405,16 +402,15 @@ impl reth_codecs::Compact for Bytecode {
                     // Otherwise, use original_len
                     original_len
                 };
-                let jump_table = bytecode::JumpTable::from_slice(buf, jump_table_len);
                 // SAFETY: persisted legacy code includes STOP padding and completes trailing
-                // `PUSH` immediate data, and `pad_dupn_immediate` completes a trailing `DUPN`,
-                // `SWAPN` or `EXCHANGE`. The bitmap belongs to these bytes, so the existing
-                // compact format meets evm2's analyzed-code invariants without reanalysis.
+                // immediate data. The bitmap belongs to these bytes, so the
+                // existing compact format meets evm2's analyzed-code invariants
+                // without reanalysis or changing its padding.
                 Self(unsafe {
                     bytecode::Bytecode::new_analyzed(
-                        pad_dupn_immediate(bytes, original_len),
+                        bytes,
                         original_len,
-                        jump_table,
+                        bytecode::JumpTable::from_slice(buf, jump_table_len),
                     )
                 })
             }
@@ -430,24 +426,6 @@ impl reth_codecs::Compact for Bytecode {
 
 #[cfg(feature = "reth-codec")]
 reth_codecs::impl_compression_for_compact!(Bytecode);
-
-/// Pads legacy code persisted before its padding covered the immediate of a trailing `DUPN`,
-/// `SWAPN` or `EXCHANGE`, so that executing it cannot read past the padded bytes.
-#[cfg(feature = "reth-codec")]
-fn pad_dupn_immediate(bytes: Bytes, original_len: usize) -> Bytes {
-    let is_dupn = |opcode: u8| opcode.wrapping_sub(op::DUPN) < 3;
-    let required = match &bytes[..original_len] {
-        [.., last] if is_dupn(*last) => 2,
-        [.., prev, op::STOP] if is_dupn(*prev) => 1,
-        _ => 0,
-    };
-    if bytes.len() - original_len >= required {
-        return bytes;
-    }
-    let mut padded = bytes.to_vec();
-    padded.resize(original_len + required, 0);
-    padded.into()
-}
 
 impl From<&GenesisAccount> for Account {
     fn from(value: &GenesisAccount) -> Self {
@@ -491,18 +469,15 @@ impl From<&AccountInfo> for Account {
 
 impl From<Account> for AccountInfo {
     fn from(reth_acc: Account) -> Self {
-        let info = Self::new(
-            reth_acc.balance,
-            reth_acc.nonce,
-            reth_acc.bytecode_hash.unwrap_or(KECCAK_EMPTY),
-            None,
-        );
-        #[cfg(feature = "account-ext")]
-        let info = Self {
+        Self {
+            balance: reth_acc.balance,
+            nonce: reth_acc.nonce,
+            code_hash: reth_acc.bytecode_hash.unwrap_or(KECCAK_EMPTY),
+            code: None,
+            _non_exhaustive: (),
+            #[cfg(feature = "account-ext")]
             extension: evm2::evm::AccountExtension::from_shared(reth_acc.extension.into_shared()),
-            ..info
-        };
-        info
+        }
     }
 }
 
@@ -692,25 +667,6 @@ mod tests {
             let mut reencoded = Vec::new();
             decoded.to_compact(&mut reencoded);
             assert_eq!(reencoded, encoded);
-            assert!(remainder.is_empty());
-        }
-    }
-
-    #[test]
-    fn records_without_dupn_immediate_padding_are_padded_on_decode() {
-        // Written before the padding covered the immediate of a trailing `DUPN`, `SWAPN` or
-        // `EXCHANGE`: `e8 00` has no padding and `e8` only the `STOP`.
-        for (encoded, original, padded) in [
-            (
-                hex!("00000002e800020000000000000002" "00").to_vec(),
-                &hex!("e800")[..],
-                hex!("e80000"),
-            ),
-            (hex!("00000002e800020000000000000001" "00").to_vec(), &hex!("e8")[..], hex!("e80000")),
-        ] {
-            let (decoded, remainder) = Bytecode::from_compact(&encoded, encoded.len());
-            assert_eq!(decoded.original_byte_slice(), original);
-            assert_eq!(decoded.bytes_slice(), padded);
             assert!(remainder.is_empty());
         }
     }
