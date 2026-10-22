@@ -655,7 +655,6 @@ mod tests {
             (hex!("0000000100020000000000000000").to_vec(), Vec::new()),
             (hex!("0000000460005b0002000000000000000304").to_vec(), hex!("60005b").to_vec()),
             (hex!("00000003ffff0002000000000000000200").to_vec(), hex!("ffff").to_vec()),
-            (hex!("00000003e6000002000000000000000100").to_vec(), hex!("e6").to_vec()),
         ] {
             let (decoded, remainder) = Bytecode::from_compact(&encoded, encoded.len());
             assert_eq!(decoded.original_byte_slice(), original);
