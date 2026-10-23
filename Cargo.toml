@@ -60,10 +60,6 @@ quote = "1.0"
 syn = "2.0"
 
 # test deps
-# cc 1.10.0 is blocked by the CI security proxy until it ages out; only a dev-dependency constrains the transitive build-dependency.
-cc = { version = ">=1.0, <1.10", default-features = false }
-# crypto-bigint 0.7.6 is blocked likewise.
-crypto-bigint = { version = ">=0.7, <0.7.6", default-features = false }
 test-fuzz = "7"
 # proptest-arbitrary-interop 0.1 uses the rand 0.9 API.
 proptest = ">=1.6, <1.12"
