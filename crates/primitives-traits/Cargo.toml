@@ -65,6 +65,8 @@ rand.workspace = true
 rand_08.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+cc.workspace = true
+crypto-bigint.workspace = true
 
 [features]
 account-ext = ["evm2/account-ext", "alloy-trie/account-ext", "alloy-genesis/account-ext", "reth-codecs?/account-ext"]
