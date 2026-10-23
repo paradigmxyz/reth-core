@@ -44,7 +44,7 @@ jobs:
     steps:
       - name: Secure runner
         uses: tempoxyz/gh-actions/actions/secure-runner@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: tempoxyz/gh-actions/vendor/dtolnay/rust-toolchain@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
@@ -63,11 +63,11 @@ jobs:
           fallback: none
       - name: build
         if: ${{ matrix.rust == '1.96' }} # MSRV
-        run: cargo build --workspace ${{ matrix.flags }}
+        run: cargo build --workspace --locked ${{ matrix.flags }}
       - name: test
         shell: bash
         if: ${{ matrix.rust != '1.96' }} # MSRV
-        run: cargo nextest run --workspace ${{ matrix.flags }}
+        run: cargo nextest run --workspace --locked ${{ matrix.flags }}
 
   doctest:
     permissions:
@@ -78,7 +78,7 @@ jobs:
     steps:
       - name: Secure runner
         uses: tempoxyz/gh-actions/actions/secure-runner@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: tempoxyz/gh-actions/vendor/dtolnay/rust-toolchain@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
@@ -87,8 +87,8 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
-      - run: cargo test --workspace --doc
-      - run: cargo test --all-features --workspace --doc
+      - run: cargo test --workspace --locked --doc
+      - run: cargo test --all-features --locked --workspace --doc
 
   feature-checks:
     permissions:
@@ -99,7 +99,7 @@ jobs:
     steps:
       - name: Secure runner
         uses: tempoxyz/gh-actions/actions/secure-runner@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: tempoxyz/gh-actions/vendor/dtolnay/rust-toolchain@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
@@ -115,7 +115,7 @@ jobs:
         with:
           cache-on-failure: true
       - name: cargo hack
-        run: cargo hack check --feature-powerset --depth 1
+        run: cargo hack check --locked --feature-powerset --depth 1
 
   check-no-std:
     permissions:
@@ -127,7 +127,7 @@ jobs:
     steps:
       - name: Secure runner
         uses: tempoxyz/gh-actions/actions/secure-runner@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: tempoxyz/gh-actions/vendor/dtolnay/rust-toolchain@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
@@ -154,7 +154,7 @@ jobs:
     steps:
       - name: Secure runner
         uses: tempoxyz/gh-actions/actions/secure-runner@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: tempoxyz/gh-actions/vendor/dtolnay/rust-toolchain@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
@@ -164,11 +164,11 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           cache-on-failure: true
-      - run: cargo +nightly clippy --workspace --all-targets --all-features
+      - run: cargo +nightly clippy --workspace --locked --all-targets --all-features
         env:
           RUSTFLAGS: -Dwarnings
       # Exercise the sealed account-extension bound with evm2's payload disabled.
-      - run: cargo +nightly clippy --workspace --all-targets --features reth-primitives-traits/reth-codec,reth-primitives-traits/serde,reth-primitives-traits/arbitrary
+      - run: cargo +nightly clippy --workspace --locked --all-targets --features reth-primitives-traits/reth-codec,reth-primitives-traits/serde,reth-primitives-traits/arbitrary
         env:
           RUSTFLAGS: -Dwarnings
 
@@ -181,7 +181,7 @@ jobs:
     steps:
       - name: Secure runner
         uses: tempoxyz/gh-actions/actions/secure-runner@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: tempoxyz/gh-actions/vendor/dtolnay/rust-toolchain@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
@@ -191,7 +191,7 @@ jobs:
         with:
           cache-on-failure: true
       - name: Build documentation
-        run: cargo doc --workspace --all-features --no-deps --document-private-items
+        run: cargo doc --workspace --locked --all-features --no-deps --document-private-items
         env:
           RUSTDOCFLAGS: --cfg docsrs -D warnings --show-type-layout --generate-link-to-definition -Zunstable-options
 
@@ -204,7 +204,7 @@ jobs:
     steps:
       - name: Secure runner
         uses: tempoxyz/gh-actions/actions/secure-runner@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: tempoxyz/gh-actions/vendor/dtolnay/rust-toolchain@d5402286a7abdfb7232173b3228d56473feb8a66 # 2026-09-29T02-04-45Z-d5402286
