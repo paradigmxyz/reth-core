@@ -30,7 +30,7 @@ alloy-signer = { version = "2.0", default-features = false }
 alloy-genesis = { version = "2.5.0", default-features = false }
 alloy-eip7928 = { version = "0.4.10", default-features = false }
 
-evm2 = { git = "https://github.com/alloy-rs/evm2", rev = "df9d344582a23ad36081a23788d5f736de5f0f35", default-features = false }
+evm2 = { git = "https://github.com/alloy-rs/evm2", rev = "f93318f120f6300599b21170d6c7bef81ed63d87", default-features = false }
 
 # crypto
 secp256k1 = { version = "0.30", default-features = false, features = ["global-context", "recovery"] }
