@@ -20,11 +20,12 @@ impl<'a> StructHandler<'a> {
         self.fields_iterator.next()
     }
 
-    pub fn generate_to(mut self) -> Vec<TokenStream2> {
+    /// Generates `to_compact` code for all fields, writing them to `buffer`.
+    pub fn generate_to(mut self, buffer: &TokenStream2) -> Vec<TokenStream2> {
         while let Some(field) = self.next_field() {
             match field {
                 FieldTypes::EnumVariant(_) | FieldTypes::EnumUnnamedField(_) => unreachable!(),
-                FieldTypes::StructField(field_descriptor) => self.to(field_descriptor),
+                FieldTypes::StructField(field_descriptor) => self.to(field_descriptor, buffer),
             }
         }
         self.lines
@@ -43,7 +44,7 @@ impl<'a> StructHandler<'a> {
     }
 
     /// Generates `to_compact` code for a struct field.
-    fn to(&mut self, field_descriptor: &StructFieldDescriptor) {
+    fn to(&mut self, field_descriptor: &StructFieldDescriptor, buffer: &TokenStream2) {
         let StructFieldDescriptor { name, ftype, is_compact, use_alt_impl, is_reference: _ } =
             field_descriptor;
 
@@ -58,7 +59,7 @@ impl<'a> StructHandler<'a> {
             self.is_wrapper = true;
 
             self.lines.push(quote! {
-                let _len = self.0.#to_compact_ident(&mut buffer);
+                let _len = self.0.#to_compact_ident(#buffer);
             });
 
             if is_flag_type(ftype) {
@@ -81,12 +82,12 @@ impl<'a> StructHandler<'a> {
             self.lines.push(quote! {
                 if self.#name != #itype::zero() {
                     flags.#set_bool_method(true);
-                    self.#name.#to_compact_ident(&mut buffer);
+                    self.#name.#to_compact_ident(#buffer);
                 };
             });
         } else {
             self.lines.push(quote! {
-                let #len = self.#name.#to_compact_ident(&mut buffer);
+                let #len = self.#name.#to_compact_ident(#buffer);
             });
         }
         if is_flag_type(ftype) {

@@ -545,7 +545,8 @@ const fn decode_varuint_panic() -> ! {
 mod tests {
     use super::*;
     use alloc::vec;
-    use alloy_primitives::B256;
+    use alloy_primitives::{hex, B256};
+    use bytes::BytesMut;
     use serde::{Deserialize, Serialize};
 
     fn nz(value: u64) -> NonZeroU64 {
@@ -790,6 +791,30 @@ mod tests {
             TestStruct::from_compact(&buf, buf.len()),
             (TestStruct::default(), vec![].as_slice())
         );
+    }
+
+    #[test]
+    fn compact_test_struct_buffers() {
+        let test = TestStruct::default();
+        let mut expected = vec![];
+        let len = test.to_compact(&mut expected);
+        assert_eq!(
+            expected,
+            hex!(
+                "11640101000000000000000000000000000000000000000000000000000000000000000002ffff000200000000000000000000000000000000000000000000000000000000000000000000000000000000"
+            )
+        );
+
+        // The flags are backfilled after any bytes already in the buffer.
+        let mut buf = BytesMut::from(&[0xff; 3][..]);
+        assert_eq!(test.to_compact(&mut buf), len);
+        assert_eq!(&buf[..3], &[0xff; 3]);
+        assert_eq!(&buf[3..], expected.as_slice());
+
+        // A fixed slice can't be backfilled, so it takes the fields from a temporary buffer.
+        let mut slice = [0u8; 128];
+        assert_eq!(test.to_compact(&mut slice.as_mut_slice()), len);
+        assert_eq!(&slice[..len], expected.as_slice());
     }
 
     #[derive(
