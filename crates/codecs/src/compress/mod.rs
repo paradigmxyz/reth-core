@@ -1,7 +1,7 @@
 //! Compression and decompression traits and implementations.
 
 use alloc::{boxed::Box, vec::Vec};
-use alloy_primitives::{Address, Bytes, B256};
+use alloy_primitives::{Address, Bytes, B256, B512};
 use core::{
     error::Error,
     fmt::{self, Debug},
@@ -136,7 +136,7 @@ macro_rules! impl_compression_fixed_compact {
     };
 }
 
-impl_compression_fixed_compact!(B256, Address);
+impl_compression_fixed_compact!(B256, B512, Address);
 
 impl_compression_for_compact!(Bytes);
 

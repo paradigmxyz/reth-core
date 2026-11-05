@@ -177,6 +177,26 @@ macro_rules! impl_uint_compact {
 
 impl_uint_compact!(u8, u64, u128);
 
+/// `usize` is encoded as an unsigned LEB128 varint, the same encoding used for the length
+/// prefixes of `Vec` and `Option` values.
+///
+/// The encoding is self-delimiting: `to_compact` returns the number of bytes written and
+/// `from_compact` ignores `len`.
+impl Compact for usize {
+    #[inline]
+    fn to_compact<B>(&self, buf: &mut B) -> usize
+    where
+        B: bytes::BufMut + AsMut<[u8]>,
+    {
+        encode_varuint(*self, buf)
+    }
+
+    #[inline]
+    fn from_compact(buf: &[u8], _len: usize) -> (Self, &[u8]) {
+        decode_varuint(buf)
+    }
+}
+
 impl Compact for NonZeroU64 {
     #[inline]
     fn to_compact<B>(&self, buf: &mut B) -> usize
@@ -509,15 +529,19 @@ impl Compact for bool {
     }
 }
 
-fn encode_varuint<B>(mut n: usize, buf: &mut B)
+/// Writes `n` as an unsigned LEB128 varint and returns the number of bytes written.
+fn encode_varuint<B>(mut n: usize, buf: &mut B) -> usize
 where
     B: bytes::BufMut + AsMut<[u8]>,
 {
+    let mut written = 1;
     while n >= 0x80 {
         buf.put_u8((n as u8) | 0x80);
         n >>= 7;
+        written += 1;
     }
     buf.put_u8(n as u8);
+    written
 }
 
 fn decode_varuint(buf: &[u8]) -> (usize, &[u8]) {
@@ -591,6 +615,38 @@ mod tests {
 
         // B256 shouldn't care about the len passed, since it's not actually compacted.
         assert_eq!(B256::from_compact(&buf, 1000), (B256::ZERO, vec![1u8].as_slice()));
+    }
+
+    #[test]
+    fn compact_usize() {
+        fn check(value: usize, expected: &[u8]) {
+            let mut buf = vec![];
+            assert_eq!(value.to_compact(&mut buf), expected.len());
+            assert_eq!(buf, expected);
+
+            // Add some noise data.
+            buf.push(1);
+
+            // usize is self-delimiting, so the len passed is ignored.
+            assert_eq!(usize::from_compact(&buf, 1000), (value, vec![1u8].as_slice()));
+        }
+
+        check(0, &[0x00]);
+        check(127, &[0x7f]);
+        check(128, &[0x80, 0x01]);
+        check(300, &[0xac, 0x02]);
+        #[cfg(target_pointer_width = "64")]
+        check(usize::MAX, &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01]);
+    }
+
+    #[test]
+    fn compress_b512() {
+        use alloy_primitives::B512;
+
+        let value = B512::repeat_byte(0xab);
+        assert_eq!(value.uncompressable_ref(), Some(value.as_slice()));
+        assert_eq!(value.compress(), value.to_vec());
+        assert_eq!(B512::decompress(&value.compress()).unwrap(), value);
     }
 
     #[test]
