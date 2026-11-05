@@ -125,9 +125,9 @@ impl Compact for alloc::string::String {
     }
 }
 
+// References retain the original derive path: method-call autoderef can select T's
+// specialized encoder, while trait dispatch to &T uses its default implementation.
 impl<T: Compact> Compact for &T {
-    const __COMPACT_MAX_SIZE: Option<usize> = T::__COMPACT_MAX_SIZE;
-
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
         B: BufMut + AsMut<[u8]>,
@@ -894,6 +894,14 @@ mod tests {
             bytecode_hash: Option<B256>,
         }
 
+        #[derive(Debug, Compact)]
+        #[reth_codecs(crate = "crate")]
+        struct ValueRef<'a> {
+            nonce: &'a u64,
+            balance: &'a U256,
+            bytecode_hash: &'a Option<B256>,
+        }
+
         let value = Value {
             nonce: 0x1234,
             balance: U256::from(1),
@@ -904,6 +912,15 @@ mod tests {
         assert_eq!(value.to_compact(&mut vec), expected.len());
         assert_eq!(&vec[..3], &[0xff; 3]);
         assert_eq!(&vec[3..], expected);
+
+        let borrowed = ValueRef {
+            nonce: &value.nonce,
+            balance: &value.balance,
+            bytecode_hash: &value.bytecode_hash,
+        };
+        let mut borrowed_buf = Vec::new();
+        assert_eq!(borrowed.to_compact(&mut borrowed_buf), expected.len());
+        assert_eq!(borrowed_buf, expected);
 
         let mut bytes = BytesMut::from(&vec[..3]);
         assert_eq!(value.to_compact(&mut bytes), expected.len());
