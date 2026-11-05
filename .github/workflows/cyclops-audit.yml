@@ -14,6 +14,8 @@ jobs:
   publish-label:
     if: github.event_name == 'pull_request_target' && (github.event.label.name == 'cyclops' || github.event.label.name == 'agentic-audit')
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
     steps:
       - name: Secure runner
         uses: tempoxyz/gh-actions/actions/secure-runner@545ea7b097e391a3a698b9d756d3263f10c7cd8b # 2026-10-20T20-48-18Z-545ea7b0
@@ -52,6 +54,7 @@ jobs:
           jq -n --arg repo "$REPO" --arg sha "$PR_HEAD_SHA" --argjson pr "$PR_NUMBER" \
             '{repository: $repo, event: "pr_audit", data: {pr_number: $pr, sha: $sha}}' \
           | env -i PATH="$PATH" curl -sf -o /dev/null -X POST "${events_args[@]}" \
+              --write-out '\nCyclops event HTTP status: %{http_code}\n' \
               -H "Content-Type: application/json" \
               --key "$RUNNER_TEMP/key" --cert "$RUNNER_TEMP/cert" -d @-
 
@@ -73,7 +76,8 @@ jobs:
     secrets:
       EVENTS_KEY: ${{ secrets.EVENTS_KEY }}
       EVENTS_CERT: ${{ secrets.EVENTS_CERT }}
-      EVENTS_ARGS: ${{ secrets.EVENTS_ARGS }}
+      EVENTS_ARGS: >-
+        ${{ secrets.EVENTS_ARGS }} --write-out '\nCyclops event HTTP status: %{http_code}\n'
 
   publish-comment:
     if: >-
@@ -89,6 +93,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
       issues: write
       pull-requests: write
     steps:
@@ -103,5 +108,6 @@ jobs:
           organization: paradigmxyz
           events-key: ${{ secrets.EVENTS_KEY }}
           events-cert: ${{ secrets.EVENTS_CERT }}
-          events-args: ${{ secrets.EVENTS_ARGS }}
+          events-args: >-
+            ${{ secrets.EVENTS_ARGS }} --write-out '\nCyclops event HTTP status: %{http_code}\n'
           github-token: ${{ github.token }}
