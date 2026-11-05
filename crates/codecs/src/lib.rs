@@ -885,27 +885,46 @@ mod tests {
     }
 
     #[test]
-    fn compact_test_struct_buffers() {
-        let test = TestStruct::default();
-        let mut expected = vec![];
-        let len = test.to_compact(&mut expected);
-        assert_eq!(
-            expected,
-            hex!(
-                "11640101000000000000000000000000000000000000000000000000000000000000000002ffff000200000000000000000000000000000000000000000000000000000000000000000000000000000000"
-            )
-        );
+    fn compact_stack_buffers() {
+        #[derive(Debug, PartialEq, Compact)]
+        #[reth_codecs(crate = "crate")]
+        struct Value {
+            nonce: u64,
+            balance: U256,
+            bytecode_hash: Option<B256>,
+        }
 
-        // Existing bytes in the caller's buffer are preserved.
-        let mut buf = BytesMut::from(&[0xff; 3][..]);
-        assert_eq!(test.to_compact(&mut buf), len);
-        assert_eq!(&buf[..3], &[0xff; 3]);
-        assert_eq!(&buf[3..], expected.as_slice());
+        let value = Value {
+            nonce: 0x1234,
+            balance: U256::from(1),
+            bytecode_hash: Some(B256::repeat_byte(0xab)),
+        };
+        let expected = [hex!("1204123401").as_slice(), &[0xab; 32]].concat();
+        let mut vec = vec![0xff; 3];
+        assert_eq!(value.to_compact(&mut vec), expected.len());
+        assert_eq!(&vec[..3], &[0xff; 3]);
+        assert_eq!(&vec[3..], expected);
 
-        // Fixed slices receive the same flags and payload as growable buffers.
-        let mut slice = [0u8; 128];
-        assert_eq!(test.to_compact(&mut slice.as_mut_slice()), len);
-        assert_eq!(&slice[..len], expected.as_slice());
+        let mut bytes = BytesMut::from(&vec[..3]);
+        assert_eq!(value.to_compact(&mut bytes), expected.len());
+        assert_eq!(&bytes[..], vec);
+
+        let mut storage = [0xa5; 40];
+        let mut slice = storage.as_mut_slice();
+        assert_eq!(value.to_compact(&mut slice), expected.len());
+        assert_eq!(slice, &[0xa5; 3]);
+        assert_eq!(&storage[..expected.len()], expected);
+        let (decoded, remaining) = Value::from_compact(&storage, expected.len());
+        assert_eq!(decoded, value);
+        assert_eq!(remaining, &[0xa5; 3]);
+
+        // As before, a short destination receives the flags before the payload write panics.
+        let mut short = [0xa5; 3];
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            value.to_compact(&mut short.as_mut_slice())
+        }));
+        assert!(result.is_err());
+        assert_eq!(short, [0x12, 0x04, 0xa5]);
     }
 
     #[derive(

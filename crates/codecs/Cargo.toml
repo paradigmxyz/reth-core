@@ -84,8 +84,3 @@ arbitrary = [
     "alloy-primitives/arbitrary",
     "alloy-trie?/arbitrary",
 ]
-
-[[bench]]
-name = "compact"
-harness = false
-required-features = ["std"]
