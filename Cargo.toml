@@ -32,9 +32,6 @@ alloy-eip7928 = { version = "0.4.10", default-features = false }
 
 evm2 = { git = "https://github.com/alloy-rs/evm2", rev = "f93318f120f6300599b21170d6c7bef81ed63d87", default-features = false }
 
-# crypto
-secp256k1 = { version = "0.30", default-features = false, features = ["global-context", "recovery"] }
-
 # misc
 bytes = { version = "1.11.1", default-features = false }
 byteorder = "1"
@@ -52,7 +49,6 @@ visibility = "0.1.1"
 zstd = "0.14.3"
 arbitrary = "1.3"
 rand = "0.9"
-rand_08 = { package = "rand", version = "0.8" }
 
 # derive deps
 proc-macro2 = "1.0"

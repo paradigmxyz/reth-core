@@ -25,9 +25,6 @@ alloy-rlp.workspace = true
 alloy-trie.workspace = true
 evm2.workspace = true
 
-# crypto
-secp256k1 = { workspace = true, features = ["recovery"], optional = true }
-
 # misc
 byteorder = { workspace = true, optional = true }
 bytes.workspace = true
@@ -57,12 +54,10 @@ alloy-consensus = { workspace = true, features = ["arbitrary", "serde"] }
 
 arbitrary = { workspace = true, features = ["derive"] }
 modular-bitfield.workspace = true
-secp256k1 = { workspace = true, features = ["recovery", "global-context", "rand"] }
 byteorder.workspace = true
 proptest-arbitrary-interop.workspace = true
 proptest.workspace = true
 rand.workspace = true
-rand_08.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
@@ -81,7 +76,6 @@ std = [
     "bytes/std",
     "derive_more/std",
     "once_cell/std",
-    "secp256k1?/std",
     "thiserror/std",
     "alloy-trie/std",
     "serde_json/std",
@@ -103,8 +97,6 @@ arbitrary = [
     "dep:proptest-arbitrary-interop",
     "alloy-eips/arbitrary",
     "reth-codecs?/arbitrary",
-    "secp256k1?/global-context",
-    "secp256k1?/rand",
     "alloy-trie/arbitrary",
     "alloy-rpc-types-eth?/arbitrary",
     "dashmap?/arbitrary",
@@ -119,9 +111,7 @@ serde = [
     "bytes/serde",
     "rand/serde",
     "reth-codecs?/serde",
-    "secp256k1?/serde",
     "alloy-trie/serde",
-    "rand_08/serde",
     "alloy-rpc-types-eth?/serde",
     "dashmap?/serde",
 ]
