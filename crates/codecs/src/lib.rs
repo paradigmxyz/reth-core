@@ -71,6 +71,16 @@ pub mod __private;
 /// change and will lead to a new, incompatible [`Compact`] implementation. Implementers must take
 /// special care when changing or rearranging fields.
 pub trait Compact: Sized {
+    /// Internal opt-in for stack buffering by the derive macro.
+    ///
+    /// `Some(n)` guarantees that both encoding methods write at most `n` bytes and that
+    /// their bytes and return values do not depend on the destination buffer's type,
+    /// contents, or capacity. Existing/custom implementations retain the heap-buffered
+    /// path by default. This is an upper bound on bytes written, not on the return value
+    /// (for example, `bool` writes no bytes but returns a flag).
+    #[doc(hidden)]
+    const __COMPACT_MAX_SIZE: Option<usize> = None;
+
     /// Takes a buffer which can be written to. *Ideally*, it returns the length written to.
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
@@ -116,6 +126,8 @@ impl Compact for alloc::string::String {
 }
 
 impl<T: Compact> Compact for &T {
+    const __COMPACT_MAX_SIZE: Option<usize> = T::__COMPACT_MAX_SIZE;
+
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
         B: BufMut + AsMut<[u8]>,
@@ -132,6 +144,8 @@ impl<T: Compact> Compact for &T {
 pub type CompactPlaceholder = ();
 
 impl Compact for CompactPlaceholder {
+    const __COMPACT_MAX_SIZE: Option<usize> = Some(0);
+
     #[inline]
     fn to_compact<B>(&self, _: &mut B) -> usize
     where
@@ -150,6 +164,8 @@ macro_rules! impl_uint_compact {
     ($($name:tt),+) => {
         $(
             impl Compact for $name {
+                const __COMPACT_MAX_SIZE: Option<usize> = Some(core::mem::size_of::<$name>());
+
                 #[inline]
                 fn to_compact<B>(&self, buf: &mut B) -> usize
                     where B: bytes::BufMut + AsMut<[u8]>
@@ -183,6 +199,8 @@ impl_uint_compact!(u8, u64, u128);
 /// The encoding is self-delimiting: `to_compact` returns the number of bytes written and
 /// `from_compact` ignores `len`.
 impl Compact for usize {
+    const __COMPACT_MAX_SIZE: Option<Self> = Some((Self::BITS as Self).div_ceil(7));
+
     #[inline]
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
@@ -198,6 +216,8 @@ impl Compact for usize {
 }
 
 impl Compact for NonZeroU64 {
+    const __COMPACT_MAX_SIZE: Option<usize> = Some(8);
+
     #[inline]
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
@@ -323,6 +343,13 @@ impl<T> Compact for Option<T>
 where
     T: Compact,
 {
+    // A full-width varint bounds the prefix even when T returns a flag rather than a size.
+    // This bound also covers specialized_to_compact, which omits the prefix.
+    const __COMPACT_MAX_SIZE: Option<usize> = match T::__COMPACT_MAX_SIZE {
+        Some(size) => size.checked_add((usize::BITS as usize).div_ceil(7)),
+        None => None,
+    };
+
     /// Returns 0 for `None` and 1 for `Some(_)`.
     #[inline]
     fn to_compact<B>(&self, buf: &mut B) -> usize
@@ -408,6 +435,8 @@ impl<T: Compact + ToOwned<Owned = T>> Compact for Cow<'_, T> {
 }
 
 impl Compact for U256 {
+    const __COMPACT_MAX_SIZE: Option<usize> = Some(32);
+
     #[inline]
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
@@ -450,6 +479,8 @@ impl Compact for Bytes {
 }
 
 impl<const N: usize> Compact for [u8; N] {
+    const __COMPACT_MAX_SIZE: Option<usize> = Some(N);
+
     #[inline]
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
@@ -497,6 +528,8 @@ macro_rules! impl_compact_for_wrapped_bytes {
 impl_compact_for_wrapped_bytes!(Address, Bloom);
 
 impl<const N: usize> Compact for FixedBytes<N> {
+    const __COMPACT_MAX_SIZE: Option<usize> = Some(N);
+
     #[inline]
     fn to_compact<B>(&self, buf: &mut B) -> usize
     where
@@ -513,6 +546,8 @@ impl<const N: usize> Compact for FixedBytes<N> {
 }
 
 impl Compact for bool {
+    const __COMPACT_MAX_SIZE: Option<usize> = Some(0);
+
     /// `bool` vars go directly to the `StructFlags` and are not written to the buffer.
     #[inline]
     fn to_compact<B>(&self, _: &mut B) -> usize
@@ -861,13 +896,13 @@ mod tests {
             )
         );
 
-        // The flags are backfilled after any bytes already in the buffer.
+        // Existing bytes in the caller's buffer are preserved.
         let mut buf = BytesMut::from(&[0xff; 3][..]);
         assert_eq!(test.to_compact(&mut buf), len);
         assert_eq!(&buf[..3], &[0xff; 3]);
         assert_eq!(&buf[3..], expected.as_slice());
 
-        // A fixed slice can't be backfilled, so it takes the fields from a temporary buffer.
+        // Fixed slices receive the same flags and payload as growable buffers.
         let mut slice = [0u8; 128];
         assert_eq!(test.to_compact(&mut slice.as_mut_slice()), len);
         assert_eq!(&slice[..len], expected.as_slice());

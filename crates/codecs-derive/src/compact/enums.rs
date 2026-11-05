@@ -20,13 +20,12 @@ impl<'a> EnumHandler<'a> {
         self.fields_iterator.next()
     }
 
-    /// Generates match arms that write the flags followed by the variant's field to `buffer`.
-    pub fn generate_to(mut self, ident: &Ident, buffer: &TokenStream2) -> Vec<TokenStream2> {
+    pub fn generate_to(mut self, ident: &Ident) -> Vec<TokenStream2> {
         while let Some(field) = self.next_field() {
             match field {
                 //  The following method will advance the
                 // `fields_iterator` by itself and stop right before the next variant.
-                FieldTypes::EnumVariant(name) => self.to(name, ident, buffer),
+                FieldTypes::EnumVariant(name) => self.to(name, ident),
                 FieldTypes::EnumUnnamedField(_) | FieldTypes::StructField(_) => unreachable!(),
             }
         }
@@ -91,7 +90,7 @@ impl<'a> EnumHandler<'a> {
     ///
     /// `fields_iterator` might look something like [`VariantUnit`, `VariantUnnamedField`, Field,
     /// `VariantUnit`...].
-    pub fn to(&mut self, variant_name: &str, ident: &Ident, buffer: &TokenStream2) {
+    pub fn to(&mut self, variant_name: &str, ident: &Ident) {
         let variant_name = format_ident!("{variant_name}");
         let current_variant_index = self.current_variant_index;
 
@@ -107,28 +106,21 @@ impl<'a> EnumHandler<'a> {
                     // Unnamed type
                     self.enum_lines.push(quote! {
                         #ident::#variant_name(field) => {
-                            flags.set_variant(#current_variant_index);
-                            #buffer.put_slice(&flags.into_bytes());
-                            field.#to_compact_ident(#buffer);
+                            field.#to_compact_ident(&mut buffer);
+                            #current_variant_index
                         },
                     });
                     self.fields_iterator.next();
                 }
                 FieldTypes::EnumVariant(_) => self.enum_lines.push(quote! {
-                    #ident::#variant_name => {
-                        flags.set_variant(#current_variant_index);
-                        #buffer.put_slice(&flags.into_bytes());
-                    },
+                    #ident::#variant_name => #current_variant_index,
                 }),
                 FieldTypes::StructField(_) => unreachable!(),
             };
         } else {
             // This variant has no fields: Unit type
             self.enum_lines.push(quote! {
-                #ident::#variant_name => {
-                    flags.set_variant(#current_variant_index);
-                    #buffer.put_slice(&flags.into_bytes());
-                },
+                #ident::#variant_name => #current_variant_index,
             });
         }
         self.current_variant_index += 1;

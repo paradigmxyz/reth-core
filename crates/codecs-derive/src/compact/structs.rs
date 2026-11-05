@@ -20,12 +20,19 @@ impl<'a> StructHandler<'a> {
         self.fields_iterator.next()
     }
 
-    /// Generates `to_compact` code for all fields, writing them to `buffer`.
-    pub fn generate_to(mut self, buffer: &TokenStream2) -> Vec<TokenStream2> {
+    pub fn generate_to(self) -> Vec<TokenStream2> {
+        self.generate_to_buffer(None)
+    }
+
+    pub fn generate_to_stack(self, reth_codecs: &syn::Path) -> Vec<TokenStream2> {
+        self.generate_to_buffer(Some(reth_codecs))
+    }
+
+    fn generate_to_buffer(mut self, stack: Option<&syn::Path>) -> Vec<TokenStream2> {
         while let Some(field) = self.next_field() {
             match field {
                 FieldTypes::EnumVariant(_) | FieldTypes::EnumUnnamedField(_) => unreachable!(),
-                FieldTypes::StructField(field_descriptor) => self.to(field_descriptor, buffer),
+                FieldTypes::StructField(field_descriptor) => self.to(field_descriptor, stack),
             }
         }
         self.lines
@@ -44,7 +51,7 @@ impl<'a> StructHandler<'a> {
     }
 
     /// Generates `to_compact` code for a struct field.
-    fn to(&mut self, field_descriptor: &StructFieldDescriptor, buffer: &TokenStream2) {
+    fn to(&mut self, field_descriptor: &StructFieldDescriptor, stack: Option<&syn::Path>) {
         let StructFieldDescriptor { name, ftype, is_compact, use_alt_impl, is_reference: _ } =
             field_descriptor;
 
@@ -54,12 +61,29 @@ impl<'a> StructHandler<'a> {
             format_ident!("to_compact")
         };
 
+        let member = if name.is_empty() {
+            quote! { 0 }
+        } else {
+            let name = format_ident!("{name}");
+            quote! { #name }
+        };
+        let encode = if let Some(reth_codecs) = stack {
+            // Use the opt-in trait implementation on the fast path. Inherent methods
+            // accepting only BytesMut remain compilable on the original fallback path.
+            quote! {
+                (&#reth_codecs::__private::CompactMaxSize(&self.#member))
+                    .compact_to_stack(&mut buffer, #use_alt_impl)
+            }
+        } else {
+            quote! { self.#member.#to_compact_ident(&mut buffer) }
+        };
+
         // Should only happen on wrapper structs like `Struct(pub Field)`
         if name.is_empty() {
             self.is_wrapper = true;
 
             self.lines.push(quote! {
-                let _len = self.0.#to_compact_ident(#buffer);
+                let _len = #encode;
             });
 
             if is_flag_type(ftype) {
@@ -82,12 +106,12 @@ impl<'a> StructHandler<'a> {
             self.lines.push(quote! {
                 if self.#name != #itype::zero() {
                     flags.#set_bool_method(true);
-                    self.#name.#to_compact_ident(#buffer);
+                    #encode;
                 };
             });
         } else {
             self.lines.push(quote! {
-                let #len = self.#name.#to_compact_ident(#buffer);
+                let #len = #encode;
             });
         }
         if is_flag_type(ftype) {
