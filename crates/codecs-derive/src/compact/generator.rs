@@ -161,9 +161,39 @@ fn generate_to_compact(
     zstd: Option<ZstdConfig>,
     reth_codecs: &syn::Path,
 ) -> Vec<TokenStream2> {
-    let mut lines = vec![quote! {
+    let mut lines = vec![];
+    // Keep arbitrary field encoders on the original, fresh BytesMut. Only implementations
+    // explicitly declaring a bounded, buffer-independent encoding may use stack storage.
+    // Zstd also retains its original buffer and compression threshold.
+    if zstd.is_none() && !fields.iter().any(|field| matches!(field, FieldTypes::EnumVariant(_))) {
+        let sizes = fields.iter().map(|field| {
+            let FieldTypes::StructField(field) = field else { unreachable!() };
+            let member = if field.name.is_empty() {
+                quote! { 0 }
+            } else {
+                let name = format_ident!("{}", field.name);
+                quote! { #name }
+            };
+            quote! { (&#reth_codecs::__private::CompactMaxSize(&self.#member)).compact_max_size() }
+        });
+        let field_lines = StructHandler::new(fields).generate_to_stack(reth_codecs);
+        lines.push(quote! {
+            use #reth_codecs::__private::GetCompactMaxSize as _;
+            if #reth_codecs::__private::fits_on_stack(&[#(#sizes),*]) {
+                let mut storage = [0u8; #reth_codecs::__private::COMPACT_STACK_CAPACITY];
+                let mut buffer = storage.as_mut_slice();
+                #(#field_lines)*
+                let written = #reth_codecs::__private::COMPACT_STACK_CAPACITY - buffer.len();
+                let flags = flags.into_bytes();
+                buf.put_slice(&flags);
+                buf.put(&storage[..written]);
+                return flags.len() + written;
+            }
+        });
+    }
+    lines.push(quote! {
         let mut buffer = #reth_codecs::__private::bytes::BytesMut::new();
-    }];
+    });
 
     let is_enum = fields.iter().any(|field| matches!(field, FieldTypes::EnumVariant(_)));
 
