@@ -39,7 +39,6 @@ dashmap = "6.0"
 derive_more = { version = "2", default-features = false, features = ["full"] }
 modular-bitfield = "0.13.1"
 once_cell = { version = "1.19", default-features = false, features = ["critical-section"] }
-parity-scale-codec = { version = "3.2.1", features = ["bytes"] }
 quanta = "0.13"
 rayon = "1.7"
 serde = { version = "1.0", default-features = false }
@@ -62,6 +61,7 @@ proptest = ">=1.6, <1.12"
 proptest-arbitrary-interop = "0.1"
 rstest = "0.27.0"
 similar-asserts = { version = "1.5.0", features = ["serde"] }
+parity-scale-codec = { version = "3.2.1", default-features = false, features = ["std"] }
 
 [workspace.lints]
 rust.missing_debug_implementations = "warn"
