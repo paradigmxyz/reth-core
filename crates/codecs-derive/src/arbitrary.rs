@@ -67,7 +67,7 @@ pub fn maybe_generate_tests(
 
                 #[test]
                 fn malformed_rlp_header_check() {
-                    use rand::RngCore;
+                    use rand::Rng;
 
                     // get random instance of type
                     let mut raw = vec![0u8; 1024];
