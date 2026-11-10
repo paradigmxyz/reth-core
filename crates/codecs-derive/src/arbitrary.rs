@@ -67,11 +67,8 @@ pub fn maybe_generate_tests(
 
                 #[test]
                 fn malformed_rlp_header_check() {
-                    use rand::Rng;
-
                     // get random instance of type
-                    let mut raw = vec![0u8; 1024];
-                    rand::rng().fill_bytes(&mut raw);
+                    let raw: [u8; 1024] = rand::random();
                     let mut unstructured = arbitrary::Unstructured::new(&raw[..]);
                     let val: Result<super::#type_ident, _> = arbitrary::Arbitrary::arbitrary(&mut unstructured);
                     if val.is_err() {
