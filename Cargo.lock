@@ -3081,6 +3081,7 @@ dependencies = [
  "chacha20",
  "getrandom 0.4.3",
  "rand_core 0.10.1",
+ "serde",
 ]
 
 [[package]]
@@ -3297,7 +3298,7 @@ dependencies = [
  "proptest",
  "proptest-arbitrary-interop",
  "quanta",
- "rand 0.9.5",
+ "rand 0.10.3",
  "rayon",
  "reth-codecs",
  "rmp-serde",
