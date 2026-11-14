@@ -761,7 +761,8 @@ mod rpc_compat {
         /// Converts the block to an RPC [`Block`] without consuming self.
         ///
         /// For transaction hashes, only necessary parts are cloned for efficiency.
-        /// For full transactions, the entire block is cloned.
+        /// For full transactions, each transaction is cloned after it has been hashed, so the
+        /// hashes stay cached on this block.
         ///
         /// The `converter` closure transforms each transaction into the desired response
         /// type.
@@ -784,7 +785,7 @@ mod rpc_compat {
             match kind {
                 BlockTransactionsKind::Hashes => self.to_rpc_block_with_tx_hashes(header_builder),
                 BlockTransactionsKind::Full => {
-                    self.clone().into_rpc_block_full(converter, header_builder)
+                    self.clone_into_rpc_block_full(converter, header_builder)
                 }
             }
         }
@@ -881,6 +882,55 @@ mod rpc_compat {
             let block = Block { header, uncles, transactions, withdrawals };
 
             Ok(block)
+        }
+
+        /// Creates an RPC [`Block`] with full transaction objects from a reference.
+        ///
+        /// Returns [`BlockTransactions::Full`] with complete transaction data.
+        /// The `converter` closure transforms each transaction with its metadata.
+        ///
+        /// Each transaction is hashed before it is cloned, so the hashes stay cached on this block
+        /// and repeated calls do not compute them again.
+        pub fn clone_into_rpc_block_full<T, RpcHeader, F, E>(
+            &self,
+            converter: F,
+            header_builder: impl FnOnce(SealedHeader<B::Header>, usize) -> Result<RpcHeader, E>,
+        ) -> Result<Block<T, RpcHeader>, E>
+        where
+            F: Fn(
+                Recovered<<<B as BlockTrait>::Body as BlockBodyTrait>::Transaction>,
+                TransactionInfo,
+            ) -> Result<T, E>,
+        {
+            let block_number = self.header().number();
+            let base_fee = self.header().base_fee_per_gas();
+            let block_hash = Some(self.hash());
+            let block_timestamp = self.header().timestamp();
+
+            let transactions = self
+                .transactions_with_sender()
+                .enumerate()
+                .map(|(idx, (sender, tx))| {
+                    let tx_info = TransactionInfo {
+                        hash: Some(*tx.tx_hash()),
+                        block_hash,
+                        block_number: Some(block_number),
+                        block_timestamp: Some(block_timestamp),
+                        base_fee,
+                        index: Some(idx as u64),
+                    };
+
+                    converter(Recovered::new_unchecked(tx.clone(), *sender), tx_info)
+                })
+                .collect::<Result<Vec<_>, E>>()?;
+
+            let transactions = BlockTransactions::Full(transactions);
+            let uncles =
+                self.body().ommers().unwrap_or(&[]).iter().map(|h| h.hash_slow()).collect();
+            let withdrawals = self.body().withdrawals().cloned();
+            let header = header_builder(self.clone_sealed_header(), self.rlp_length())?;
+
+            Ok(Block { header, uncles, transactions, withdrawals })
         }
     }
 
@@ -993,5 +1043,40 @@ mod tests {
                 .unwrap();
             assert_eq!(rpc_block.header, expected_size);
         }
+    }
+
+    #[cfg(feature = "rpc-compat")]
+    #[test]
+    fn clone_into_rpc_block_full_caches_transaction_hashes() {
+        let transactions = (0..2)
+            .map(|nonce| {
+                alloy_consensus::TxEnvelope::Legacy(alloy_consensus::Signed::new_unhashed(
+                    TxLegacy { nonce, ..Default::default() },
+                    Signature::test_signature(),
+                ))
+            })
+            .collect();
+        let block = alloy_consensus::Block {
+            header: Header::default(),
+            body: alloy_consensus::BlockBody {
+                transactions,
+                ommers: vec![Header::default()],
+                withdrawals: Some(Default::default()),
+            },
+        };
+        let recovered =
+            RecoveredBlock::new_unhashed(block, vec![Address::ZERO, Address::with_last_byte(1)]);
+        let unhashed = format!("{:?}", recovered.body().transactions);
+
+        let converter = |tx: Recovered<alloy_consensus::TxEnvelope>, info| {
+            Ok::<_, Infallible>((tx.signer(), info))
+        };
+        let header_builder =
+            |header: SealedHeader<Header>, size| Ok::<_, Infallible>((header.hash(), size));
+        let rpc_block = recovered.clone_into_rpc_block_full(converter, header_builder).unwrap();
+
+        // The debug output shows whether a hash is cached.
+        assert_ne!(format!("{:?}", recovered.body().transactions), unhashed);
+        assert_eq!(rpc_block, recovered.into_rpc_block_full(converter, header_builder).unwrap());
     }
 }
