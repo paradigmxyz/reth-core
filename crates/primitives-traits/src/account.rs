@@ -23,6 +23,11 @@ pub mod compact_ids {
 
     /// Identifier for EIP-7702 bytecode.
     pub const EIP7702_BYTECODE_ID: u8 = 4;
+
+    /// Identifier for legacy analyzed bytecode with a record of its translation to evm2
+    /// superinstructions. Only builds with the `sx` feature read it, so a database that holds it
+    /// needs them from then on.
+    pub const LEGACY_SX_BYTECODE_ID: u8 = 5;
 }
 
 /// An Ethereum account with chain-specific extension data.
@@ -355,6 +360,21 @@ impl reth_codecs::Compact for Bytecode {
         buf.put_u32(bytecode.len() as u32);
         buf.put_slice(bytecode.as_ref());
         let len = if self.0.is_legacy() {
+            // A translated bytecode keeps its translation as a record next to its jump table.
+            #[cfg(feature = "sx")]
+            if let (Some(jump_table), Some(record)) =
+                (self.0.legacy_jump_table(), self.0.sx_record())
+            {
+                use compact_ids::LEGACY_SX_BYTECODE_ID;
+                let map = jump_table.as_slice();
+                buf.put_u8(LEGACY_SX_BYTECODE_ID);
+                buf.put_u64(self.0.len() as u64);
+                buf.put_u32(map.len() as u32);
+                buf.put_slice(map);
+                buf.put_u32(record.len() as u32);
+                buf.put_slice(&record);
+                return 1 + 8 + 4 + map.len() + 4 + record.len() + bytecode.len() + 4;
+            }
             // [`REMOVED_BYTECODE_ID`] has been removed.
             if let Some(jump_table) = self.0.legacy_jump_table() {
                 buf.put_u8(LEGACY_ANALYZED_BYTECODE_ID);
@@ -417,6 +437,35 @@ impl reth_codecs::Compact for Bytecode {
             EIP7702_BYTECODE_ID => {
                 // EIP-7702 bytecode objects will be decoded from the raw bytecode
                 Self(bytecode::Bytecode::new_raw(bytes))
+            }
+            #[cfg(feature = "sx")]
+            LEGACY_SX_BYTECODE_ID => {
+                let original_len = buf.read_u64::<byteorder::BigEndian>().unwrap() as usize;
+                let map_len = buf.read_u32::<byteorder::BigEndian>().unwrap() as usize;
+                let (map, rest) = buf.split_at(map_len);
+                buf = rest;
+                let record_len = buf.read_u32::<byteorder::BigEndian>().unwrap() as usize;
+                let (record, rest) = buf.split_at(record_len);
+                buf = rest;
+                let jump_table_len =
+                    if map.len() * 8 >= bytes.len() { bytes.len() } else { original_len };
+                // SAFETY: As for `LEGACY_ANALYZED_BYTECODE_ID`.
+                let code = unsafe {
+                    bytecode::Bytecode::new_analyzed(
+                        bytes,
+                        original_len,
+                        bytecode::JumpTable::from_slice(map, jump_table_len),
+                    )
+                };
+                // A record that does not check out is ignored: the code runs untranslated until
+                // evm2 translates it again.
+                let _ = code.set_sx_record(record);
+                let _ = buf;
+                Self(code)
+            }
+            #[cfg(not(feature = "sx"))]
+            LEGACY_SX_BYTECODE_ID => {
+                unreachable!("database holds bytecode translated to superinstructions; this build lacks the `sx` feature")
             }
             _ => unreachable!("Junk data in database: unknown Bytecode variant"),
         };
@@ -642,6 +691,42 @@ mod tests {
             assert_eq!(decoded.legacy_jump_table(), bytecode.legacy_jump_table());
             assert!(remainder.is_empty());
         }
+    }
+
+    #[cfg(feature = "sx")]
+    #[test]
+    fn translated_bytecode_round_trips() {
+        // A Solidity prologue: free memory pointer, non-payable check and a selector check.
+        let raw = Bytes::from_static(&hex!(
+            "608060405234801561000f575f80fd5b5060043610610029575f3560e01c8063a9059cbb1461002d575b5f80fd5b00"
+        ));
+        let bytecode = Bytecode::new_raw(raw.clone());
+        let mut config = evm2::ExecutionConfig::<evm2::BaseEvmTypes>::for_spec_and_version(
+            evm2::SpecId::OSAKA,
+            evm2::Version::new(evm2::SpecId::OSAKA),
+        );
+        config.set_superinstructions(true);
+        config.analyze(&bytecode.0);
+        let record = bytecode.0.sx_record().expect("translated");
+
+        let mut buf = Vec::new();
+        let len = bytecode.to_compact(&mut buf);
+        assert_eq!(len, buf.len());
+        assert_eq!(buf[4 + bytecode.0.bytes().len()], compact_ids::LEGACY_SX_BYTECODE_ID);
+        let (decoded, remainder) = Bytecode::from_compact(&buf, len);
+        assert!(remainder.is_empty());
+        assert_eq!(decoded.original_bytes(), raw);
+        assert_eq!(decoded.legacy_jump_table(), bytecode.legacy_jump_table());
+        assert_eq!(decoded.0.sx_record(), Some(record));
+        let mut reencoded = Vec::new();
+        decoded.to_compact(&mut reencoded);
+        assert_eq!(reencoded, buf);
+
+        // An untranslated bytecode keeps the analyzed layout.
+        let plain = Bytecode::new_raw(raw);
+        let mut buf = Vec::new();
+        plain.to_compact(&mut buf);
+        assert_eq!(buf[4 + plain.0.bytes().len()], compact_ids::LEGACY_ANALYZED_BYTECODE_ID);
     }
 
     #[test]

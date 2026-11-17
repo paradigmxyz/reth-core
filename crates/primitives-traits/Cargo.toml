@@ -62,6 +62,8 @@ serde.workspace = true
 serde_json.workspace = true
 
 [features]
+# Reads and writes bytecode translated to evm2 superinstructions (`LEGACY_SX_BYTECODE_ID`).
+sx = ["evm2/sx"]
 account-ext = ["evm2/account-ext", "alloy-trie/account-ext", "alloy-genesis/account-ext", "reth-codecs?/account-ext"]
 default = ["std", "quanta"]
 std = [
