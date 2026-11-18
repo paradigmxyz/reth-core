@@ -1858,7 +1858,7 @@ dependencies = [
 [[package]]
 name = "evm2"
 version = "0.1.0"
-source = "git+https://github.com/alloy-rs/evm2?rev=d962d25503774023788323bd8c40132f49988dbd#d962d25503774023788323bd8c40132f49988dbd"
+source = "git+https://github.com/alloy-rs/evm2?rev=ebdc8309f7526556e2ff5dedbb2a46dfb168943e#ebdc8309f7526556e2ff5dedbb2a46dfb168943e"
 dependencies = [
  "alloy-consensus",
  "alloy-eip7928",
@@ -1897,7 +1897,7 @@ dependencies = [
 [[package]]
 name = "evm2-macros"
 version = "0.1.0"
-source = "git+https://github.com/alloy-rs/evm2?rev=d962d25503774023788323bd8c40132f49988dbd#d962d25503774023788323bd8c40132f49988dbd"
+source = "git+https://github.com/alloy-rs/evm2?rev=ebdc8309f7526556e2ff5dedbb2a46dfb168943e#ebdc8309f7526556e2ff5dedbb2a46dfb168943e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1907,7 +1907,7 @@ dependencies = [
 [[package]]
 name = "evm2-sx"
 version = "0.1.0"
-source = "git+https://github.com/alloy-rs/evm2?rev=d962d25503774023788323bd8c40132f49988dbd#d962d25503774023788323bd8c40132f49988dbd"
+source = "git+https://github.com/alloy-rs/evm2?rev=ebdc8309f7526556e2ff5dedbb2a46dfb168943e#ebdc8309f7526556e2ff5dedbb2a46dfb168943e"
 
 [[package]]
 name = "fastrand"
