@@ -40,7 +40,6 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
         B: bytes::BufMut + AsMut<[u8]>,
     {
         let mut flags = ReceiptFlags::default();
-        let mut total_length = 0;
         let mut buffer = bytes::BytesMut::new();
 
         let tx_type_len = self.tx_type.to_compact(&mut buffer);
@@ -57,25 +56,27 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
         }
 
         let flags = flags.into_bytes();
-        total_length += flags.len() + buffer.len();
         buf.put_slice(&flags);
         if zstd {
             reth_zstd_compressors::with_receipt_compressor(|compressor| {
                 let compressed = compressor.compress(&buffer).expect("Failed to compress.");
                 buf.put(compressed.as_slice());
-            });
+                flags.len() + compressed.len()
+            })
         } else {
+            let len = flags.len() + buffer.len();
             buf.put(buffer);
+            len
         }
-        total_length
     }
 
-    fn from_compact(buf: &[u8], _len: usize) -> (Self, &[u8]) {
+    fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
+        // Decode only this receipt's `len` bytes and return everything after it.
+        let (buf, rest) = buf.split_at(len);
         let (flags, mut buf) = ReceiptFlags::from(buf);
         if flags.__zstd() != 0 {
             reth_zstd_compressors::with_receipt_decompressor(|decompressor| {
                 let decompressed = decompressor.decompress(buf);
-                let original_buf = buf;
                 let mut buf: &[u8] = decompressed;
                 let (tx_type, new_buf) = T::from_compact(buf, flags.tx_type_len() as usize);
                 buf = new_buf;
@@ -85,7 +86,7 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
                     u64::from_compact(buf, flags.cumulative_gas_used_len() as usize);
                 buf = new_buf;
                 let (logs, _) = Vec::<Log>::from_compact(buf, buf.len());
-                (Self { tx_type, success, cumulative_gas_used, logs }, original_buf)
+                (Self { tx_type, success, cumulative_gas_used, logs }, rest)
             })
         } else {
             let (tx_type, new_buf) = T::from_compact(buf, flags.tx_type_len() as usize);
@@ -95,10 +96,8 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
             let (cumulative_gas_used, new_buf) =
                 u64::from_compact(buf, flags.cumulative_gas_used_len() as usize);
             buf = new_buf;
-            let (logs, new_buf) = Vec::<Log>::from_compact(buf, buf.len());
-            buf = new_buf;
-            let obj = Self { tx_type, success, cumulative_gas_used, logs };
-            (obj, buf)
+            let (logs, _) = Vec::<Log>::from_compact(buf, buf.len());
+            (Self { tx_type, success, cumulative_gas_used, logs }, rest)
         }
     }
 }
@@ -117,6 +116,57 @@ mod tests {
             let len = receipt.to_compact(&mut compacted_receipt);
             let (decoded, _) = AlloyEthereumReceipt::<TxType>::from_compact(&compacted_receipt, len);
             assert_eq!(receipt, decoded)
+        }
+    }
+
+    fn receipt(with_log: bool) -> AlloyEthereumReceipt<TxType> {
+        let logs = if with_log {
+            vec![Log::new_unchecked(
+                alloy_primitives::Address::repeat_byte(0x22),
+                vec![alloy_primitives::B256::repeat_byte(0x33)],
+                alloy_primitives::Bytes::from_static(b"reth"),
+            )]
+        } else {
+            vec![]
+        };
+        AlloyEthereumReceipt { tx_type: TxType::Eip1559, success: true, cumulative_gas_used: 21_000, logs }
+    }
+
+    // Encodings produced by the codec before the `len`/remainder fix. Decoding them proves the
+    // on-disk format is unchanged.
+    const UNCOMPRESSED: &str = "16520800";
+    const COMPRESSED: &str = "9628b52ffd23fc4269613da5000058520801392201337265746802cc80d1c200102c";
+
+    #[test]
+    fn receipt_fixtures_and_remainder() {
+        for (with_log, fixture) in [(false, UNCOMPRESSED), (true, COMPRESSED)] {
+            let receipt = receipt(with_log);
+            let fixture = alloy_primitives::hex::decode(fixture).unwrap();
+            assert_eq!(fixture[0] >> 7, with_log as u8, "zstd flag");
+
+            let mut buf = Vec::new();
+            let len = receipt.to_compact(&mut buf);
+            assert_eq!(buf, fixture, "encoding changed");
+            assert_eq!(len, buf.len(), "to_compact must return bytes written");
+
+            let (decoded, rest) = AlloyEthereumReceipt::<TxType>::from_compact(&fixture, fixture.len());
+            assert_eq!(decoded, receipt);
+            assert!(rest.is_empty());
+
+            // Followed by trailing bytes: consume exactly `len` and return the rest.
+            let mut trailing = fixture.clone();
+            trailing.extend_from_slice(&[0xde, 0xad]);
+            let (decoded, rest) = AlloyEthereumReceipt::<TxType>::from_compact(&trailing, len);
+            assert_eq!(decoded, receipt);
+            assert_eq!(rest, &[0xde, 0xad]);
+
+            // Nested in a Vec, whose element framing uses the returned length.
+            let receipts = vec![receipt.clone(), receipt.clone()];
+            let mut nested = Vec::new();
+            receipts.to_compact(&mut nested);
+            let (decoded, rest) = Vec::<AlloyEthereumReceipt<TxType>>::from_compact(&nested, nested.len());
+            assert_eq!(decoded, receipts);
+            assert!(rest.is_empty());
         }
     }
 }
