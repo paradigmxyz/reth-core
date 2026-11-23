@@ -166,4 +166,16 @@ mod tests {
             assert!(rest.is_empty());
         }
     }
+
+    #[test]
+    fn decodes_legacy_option_with_oversized_prefix() {
+        // `Some(receipt(true))` encoded before the fix: the prefix 0x3e (62) is the uncompressed
+        // length, but only the 34-byte compressed body follows.
+        let legacy = alloy_primitives::hex::decode(
+            "3e9628b52ffd23fc4269613da5000058520801392201337265746802cc80d1c200102c",
+        )
+        .unwrap();
+        let (decoded, _) = Option::<AlloyEthereumReceipt<TxType>>::from_compact(&legacy, 1);
+        assert_eq!(decoded, Some(receipt(true)));
+    }
 }
