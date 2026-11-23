@@ -71,7 +71,9 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
     }
 
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
-        let (buf, rest) = buf.split_at(len);
+        // Older encoders could write a `Vec`/`Option` length prefix larger than the zstd body,
+        // so clamp instead of panicking on such data.
+        let (buf, rest) = buf.split_at(len.min(buf.len()));
         let (flags, buf) = ReceiptFlags::from(buf);
         let decode = |buf: &[u8]| {
             let (tx_type, buf) = T::from_compact(buf, flags.tx_type_len() as usize);
@@ -88,7 +90,6 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
         };
         (receipt, rest)
     }
-
 }
 
 #[cfg(test)]
@@ -118,7 +119,12 @@ mod tests {
         } else {
             vec![]
         };
-        AlloyEthereumReceipt { tx_type: TxType::Eip1559, success: true, cumulative_gas_used: 21_000, logs }
+        AlloyEthereumReceipt {
+            tx_type: TxType::Eip1559,
+            success: true,
+            cumulative_gas_used: 21_000,
+            logs,
+        }
     }
 
     // Encodings produced by the codec before the `len`/remainder fix. Decoding them proves the
@@ -138,7 +144,8 @@ mod tests {
             assert_eq!(buf, fixture, "encoding changed");
             assert_eq!(len, buf.len(), "to_compact must return bytes written");
 
-            let (decoded, rest) = AlloyEthereumReceipt::<TxType>::from_compact(&fixture, fixture.len());
+            let (decoded, rest) =
+                AlloyEthereumReceipt::<TxType>::from_compact(&fixture, fixture.len());
             assert_eq!(decoded, receipt);
             assert!(rest.is_empty());
 
@@ -153,7 +160,8 @@ mod tests {
             let receipts = vec![receipt.clone(), receipt.clone()];
             let mut nested = Vec::new();
             receipts.to_compact(&mut nested);
-            let (decoded, rest) = Vec::<AlloyEthereumReceipt<TxType>>::from_compact(&nested, nested.len());
+            let (decoded, rest) =
+                Vec::<AlloyEthereumReceipt<TxType>>::from_compact(&nested, nested.len());
             assert_eq!(decoded, receipts);
             assert!(rest.is_empty());
         }

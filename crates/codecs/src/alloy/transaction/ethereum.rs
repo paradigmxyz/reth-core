@@ -124,7 +124,7 @@ pub trait CompactEnvelope: Sized {
     ///
     /// `len` can either be the `buf` remaining length, or the length of the compacted type.
     ///
-    /// It will panic, if `len` is smaller than `buf.len()`.
+    /// It will panic if `len` is larger than `buf.len()`.
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]);
 }
 
