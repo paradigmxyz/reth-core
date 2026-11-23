@@ -71,35 +71,24 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
     }
 
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
-        // Decode only this receipt's `len` bytes and return everything after it.
         let (buf, rest) = buf.split_at(len);
-        let (flags, mut buf) = ReceiptFlags::from(buf);
-        if flags.__zstd() != 0 {
-            reth_zstd_compressors::with_receipt_decompressor(|decompressor| {
-                let decompressed = decompressor.decompress(buf);
-                let mut buf: &[u8] = decompressed;
-                let (tx_type, new_buf) = T::from_compact(buf, flags.tx_type_len() as usize);
-                buf = new_buf;
-                let (success, new_buf) = bool::from_compact(buf, flags.success_len() as usize);
-                buf = new_buf;
-                let (cumulative_gas_used, new_buf) =
-                    u64::from_compact(buf, flags.cumulative_gas_used_len() as usize);
-                buf = new_buf;
-                let (logs, _) = Vec::<Log>::from_compact(buf, buf.len());
-                (Self { tx_type, success, cumulative_gas_used, logs }, rest)
-            })
-        } else {
-            let (tx_type, new_buf) = T::from_compact(buf, flags.tx_type_len() as usize);
-            buf = new_buf;
-            let (success, new_buf) = bool::from_compact(buf, flags.success_len() as usize);
-            buf = new_buf;
-            let (cumulative_gas_used, new_buf) =
+        let (flags, buf) = ReceiptFlags::from(buf);
+        let decode = |buf: &[u8]| {
+            let (tx_type, buf) = T::from_compact(buf, flags.tx_type_len() as usize);
+            let (success, buf) = bool::from_compact(buf, flags.success_len() as usize);
+            let (cumulative_gas_used, buf) =
                 u64::from_compact(buf, flags.cumulative_gas_used_len() as usize);
-            buf = new_buf;
             let (logs, _) = Vec::<Log>::from_compact(buf, buf.len());
-            (Self { tx_type, success, cumulative_gas_used, logs }, rest)
-        }
+            Self { tx_type, success, cumulative_gas_used, logs }
+        };
+        let receipt = if flags.__zstd() != 0 {
+            reth_zstd_compressors::with_receipt_decompressor(|d| decode(d.decompress(buf)))
+        } else {
+            decode(buf)
+        };
+        (receipt, rest)
     }
+
 }
 
 #[cfg(test)]
