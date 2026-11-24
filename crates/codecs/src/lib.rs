@@ -310,12 +310,18 @@ where
             // length the encoding is unchanged. The decoder passes this byte count as `len`, so
             // `T::from_compact` must ignore `len` or accept the byte count (`Option` treats any
             // nonzero `len` as `Some`). Types that read `len` as an identifier (`Signature`,
-            // `TxType`, compact enums) are not supported as elements.
+            // `TxType`) cannot be framed this way and are rejected below.
             let metadata = element.to_compact(&mut tmp);
-            assert!(
-                metadata == 0 || !tmp.is_empty(),
-                "Compact element writing no bytes but returning {metadata} cannot be framed in a Vec"
-            );
+            if metadata != tmp.len() {
+                // Only reached for metadata-returning types, so byte-length types pay nothing.
+                let (decoded, _) = T::from_compact(&tmp, tmp.len());
+                let mut reencoded = Vec::with_capacity(tmp.len());
+                assert!(
+                    decoded.to_compact(&mut reencoded) == metadata && reencoded == tmp,
+                    "Compact element whose decoding depends on its returned metadata ({metadata}) \
+                     cannot be framed in a Vec"
+                );
+            }
             encode_varuint(tmp.len(), buf);
 
             buf.put_slice(&tmp);
@@ -637,6 +643,15 @@ mod tests {
         vec_roundtrip(vec![vec![1u64], vec![]]);
         vec_roundtrip(vec![Some(1u64), None, Some(0)]);
         vec_roundtrip(vec![false]);
+        vec_roundtrip(vec![TestEnum::Var2(7), TestEnum::Var0, TestEnum::Var2(0)]);
+    }
+
+    #[test]
+    #[cfg(feature = "alloy")]
+    #[should_panic(expected = "cannot be framed")]
+    fn compact_vec_rejects_identifier_element() {
+        use alloy_primitives::{Signature, U256};
+        vec![Signature::new(U256::from(1), U256::from(2), false)].to_compact(&mut vec![]);
     }
 
     #[test]
