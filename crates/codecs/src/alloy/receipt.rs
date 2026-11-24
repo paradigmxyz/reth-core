@@ -71,10 +71,15 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
     }
 
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
-        // Older encoders could write a `Vec`/`Option` length prefix larger than the zstd body,
-        // so clamp instead of panicking on such data.
-        let (buf, rest) = buf.split_at(len.min(buf.len()));
-        let (flags, buf) = ReceiptFlags::from(buf);
+        let (flags, body) = ReceiptFlags::from(buf);
+        // Older encoders wrote the uncompressed size as the `Vec`/`Option` length prefix, which
+        // can be larger or smaller than the zstd frame, so take the zstd boundary from the frame.
+        let body_len = if flags.__zstd() != 0 {
+            reth_zstd_compressors::frame_compressed_size(body)
+        } else {
+            len - 1
+        };
+        let (buf, rest) = body.split_at(body_len);
         let decode = |buf: &[u8]| {
             let (tx_type, buf) = T::from_compact(buf, flags.tx_type_len() as usize);
             let (success, buf) = bool::from_compact(buf, flags.success_len() as usize);
@@ -177,5 +182,28 @@ mod tests {
         .unwrap();
         let (decoded, _) = Option::<AlloyEthereumReceipt<TxType>>::from_compact(&legacy, 1);
         assert_eq!(decoded, Some(receipt(true)));
+    }
+
+    #[test]
+    fn decodes_legacy_option_with_undersized_prefix() {
+        // `Some(receipt)` encoded before the fix, where zstd grew the body: the prefix 0x38 (56)
+        // is the uncompressed length, but a 57-byte receipt follows.
+        let legacy = alloy_primitives::hex::decode(
+            "388028b52ffd23fc426961375d0100440201352201976eb7813b278b773bcb9c225603ed69d1d4d80ea9adb030c8471b7100238ec30100091802",
+        )
+        .unwrap();
+        let expected = AlloyEthereumReceipt {
+            tx_type: TxType::Legacy,
+            success: false,
+            cumulative_gas_used: 0,
+            logs: vec![Log::new_unchecked(
+                alloy_primitives::Address::repeat_byte(0x22),
+                vec![alloy_primitives::keccak256(b"reth")],
+                alloy_primitives::Bytes::new(),
+            )],
+        };
+        let (decoded, rest) = Option::<AlloyEthereumReceipt<TxType>>::from_compact(&legacy, 1);
+        assert_eq!(decoded, Some(expected));
+        assert!(rest.is_empty());
     }
 }
