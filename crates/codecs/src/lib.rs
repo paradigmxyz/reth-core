@@ -305,9 +305,24 @@ where
         for element in *self {
             tmp.clear();
 
-            // We don't know the length until we compact it
-            let length = element.to_compact(&mut tmp);
-            encode_varuint(length, buf);
+            // Prefix with the bytes actually written, not the returned metadata: some types return
+            // flags (`Option`, `bool`) or 0 (`Vec`, `String`). For types returning their byte
+            // length the encoding is unchanged. The decoder passes this byte count as `len`, so
+            // `T::from_compact` must ignore `len` or accept the byte count (`Option` treats any
+            // nonzero `len` as `Some`). Types that read `len` as an identifier (`Signature`,
+            // `TxType`) cannot be framed this way and are rejected below.
+            let metadata = element.to_compact(&mut tmp);
+            if metadata != tmp.len() {
+                // Only reached for metadata-returning types, so byte-length types pay nothing.
+                let (decoded, _) = T::from_compact(&tmp, tmp.len());
+                let mut reencoded = Vec::with_capacity(tmp.len());
+                assert!(
+                    decoded.to_compact(&mut reencoded) == metadata && reencoded == tmp,
+                    "Compact element whose decoding depends on its returned metadata ({metadata}) \
+                     cannot be framed in a Vec"
+                );
+            }
+            encode_varuint(tmp.len(), buf);
 
             buf.put_slice(&tmp);
         }
@@ -610,6 +625,89 @@ mod tests {
 
     fn nz(value: u64) -> NonZeroU64 {
         NonZeroU64::new(value).expect("test value must be non-zero")
+    }
+
+    fn vec_roundtrip<T: Compact + PartialEq + core::fmt::Debug>(list: Vec<T>) -> Vec<u8> {
+        let mut buf = vec![];
+        list.to_compact(&mut buf);
+        let (decoded, rest) = Vec::<T>::from_compact(&buf, buf.len());
+        assert_eq!(decoded, list);
+        assert!(rest.is_empty());
+        buf
+    }
+
+    #[test]
+    fn compact_vec_flag_returning_elements_roundtrip() {
+        vec_roundtrip(vec![String::new(), "reth".to_string()]);
+        vec_roundtrip(vec![vec![], vec![1u8, 2], vec![]]);
+        vec_roundtrip(vec![vec![1u64], vec![]]);
+        vec_roundtrip(vec![Some(1u64), None, Some(0)]);
+        vec_roundtrip(vec![false]);
+        vec_roundtrip(vec![TestEnum::Var2(7), TestEnum::Var0, TestEnum::Var2(0)]);
+    }
+
+    #[test]
+    #[cfg(feature = "alloy")]
+    #[should_panic(expected = "cannot be framed")]
+    fn compact_vec_rejects_identifier_element() {
+        use alloy_primitives::{Signature, U256};
+        vec![Signature::new(U256::from(1), U256::from(2), false)].to_compact(&mut vec![]);
+    }
+
+    #[test]
+    #[should_panic(expected = "cannot be framed")]
+    fn compact_vec_rejects_unframeable_element() {
+        vec![true].to_compact(&mut vec![]);
+    }
+
+    /// Encodings of `Vec<T>` whose elements return their byte length must not change.
+    #[test]
+    #[cfg(feature = "alloy")]
+    fn compact_vec_golden_bytes() {
+        use alloy_eips::{
+            eip2930::AccessListItem, eip4895::Withdrawal, eip7702::SignedAuthorization,
+        };
+        use alloy_primitives::{Address, U256};
+
+        let buf = vec_roundtrip(vec![0u64, 1, 0x1234]);
+        assert_eq!(hex::encode(buf), "03000101021234");
+
+        // The only flag-returning element that round-tripped before the fix.
+        let buf = vec_roundtrip(vec![Some(0u64)]);
+        assert_eq!(hex::encode(buf), "010100");
+
+        let buf = vec_roundtrip(vec![
+            Withdrawal {
+                index: 1,
+                validator_index: 0,
+                address: Address::repeat_byte(0xaa),
+                amount: 0x100,
+            },
+            Withdrawal::default(),
+        ]);
+        assert_eq!(hex::encode(buf), "0219010201aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa01001600000000000000000000000000000000000000000000");
+
+        let buf = vec_roundtrip(vec![
+            AccessListItem {
+                address: Address::repeat_byte(1),
+                storage_keys: vec![B256::repeat_byte(2)],
+            },
+            AccessListItem::default(),
+        ]);
+        assert_eq!(hex::encode(buf), "0235010101010101010101010101010101010101010101020202020202020202020202020202020202020202020202020202020202020215000000000000000000000000000000000000000000");
+
+        let auth = alloy_eips::eip7702::Authorization {
+            chain_id: U256::from(1),
+            address: Address::repeat_byte(3),
+            nonce: 7,
+        };
+        let buf = vec_roundtrip(vec![SignedAuthorization::new_unchecked(
+            auth,
+            1,
+            U256::from(5),
+            U256::from(6),
+        )]);
+        assert_eq!(hex::encode(buf), "01590105000000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000410001030303030303030303030303030303030303030307");
     }
 
     #[test]
