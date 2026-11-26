@@ -47,7 +47,7 @@ thiserror = { version = "2.0.0", default-features = false }
 visibility = "0.1.1"
 zstd = "0.14.3"
 arbitrary = "1.3"
-rand = "0.9"
+rand = "0.10"
 
 # derive deps
 proc-macro2 = "1.0"
