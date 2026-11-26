@@ -70,29 +70,27 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
         }
     }
 
-    fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
-        let (flags, body) = ReceiptFlags::from(buf);
-        // Older encoders wrote the uncompressed size as the `Vec`/`Option` length prefix, which
-        // can be larger or smaller than the zstd frame, so take the zstd boundary from the frame.
-        let body_len = if flags.__zstd() != 0 {
-            reth_zstd_compressors::frame_compressed_size(body)
-        } else {
-            len - 1
-        };
-        let (buf, rest) = body.split_at(body_len);
-        let decode = |buf: &[u8]| {
+    fn from_compact(buf: &[u8], _len: usize) -> (Self, &[u8]) {
+        fn fields<T: Compact>(flags: ReceiptFlags, buf: &[u8]) -> (AlloyEthereumReceipt<T>, &[u8]) {
             let (tx_type, buf) = T::from_compact(buf, flags.tx_type_len() as usize);
             let (success, buf) = bool::from_compact(buf, flags.success_len() as usize);
             let (cumulative_gas_used, buf) =
                 u64::from_compact(buf, flags.cumulative_gas_used_len() as usize);
-            let (logs, _) = Vec::<Log>::from_compact(buf, buf.len());
-            Self { tx_type, success, cumulative_gas_used, logs }
-        };
-        let receipt = if flags.__zstd() != 0 {
-            reth_zstd_compressors::with_receipt_decompressor(|d| decode(d.decompress(buf)))
-        } else {
-            decode(buf)
-        };
+            let (logs, buf) = Vec::<Log>::from_compact(buf, buf.len());
+            (AlloyEthereumReceipt { tx_type, success, cumulative_gas_used, logs }, buf)
+        }
+
+        let (flags, body) = ReceiptFlags::from(buf);
+        if flags.__zstd() == 0 {
+            // Uncompressed receipts end after their count-prefixed logs, so `len` is not needed.
+            return fields(flags, body)
+        }
+        // Older encoders wrote the uncompressed size as the `Vec`/`Option` length prefix, which
+        // can be larger or smaller than the zstd frame, so take the zstd boundary from the frame.
+        let (frame, rest) = body.split_at(reth_zstd_compressors::frame_compressed_size(body));
+        let receipt = reth_zstd_compressors::with_receipt_decompressor(|d| {
+            fields(flags, d.decompress(frame)).0
+        });
         (receipt, rest)
     }
 }
@@ -154,12 +152,15 @@ mod tests {
             assert_eq!(decoded, receipt);
             assert!(rest.is_empty());
 
-            // Followed by trailing bytes: consume exactly `len` and return the rest.
+            // Followed by trailing bytes: consume only the receipt and return the rest, whether
+            // `len` is the receipt's length or the remaining length a struct field passes.
             let mut trailing = fixture.clone();
             trailing.extend_from_slice(&[0xde, 0xad]);
-            let (decoded, rest) = AlloyEthereumReceipt::<TxType>::from_compact(&trailing, len);
-            assert_eq!(decoded, receipt);
-            assert_eq!(rest, &[0xde, 0xad]);
+            for len in [len, trailing.len()] {
+                let (decoded, rest) = AlloyEthereumReceipt::<TxType>::from_compact(&trailing, len);
+                assert_eq!(decoded, receipt);
+                assert_eq!(rest, &[0xde, 0xad]);
+            }
 
             // Nested in a Vec, whose element framing uses the returned length.
             let receipts = vec![receipt.clone(), receipt.clone()];
