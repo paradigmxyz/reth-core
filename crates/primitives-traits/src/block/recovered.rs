@@ -7,10 +7,10 @@ use crate::{
 };
 use alloc::vec::Vec;
 use alloy_consensus::{
-    transaction::{Recovered, TransactionMeta},
+    transaction::{Recovered, TransactionMeta, TxHashRef},
     BlockHeader,
 };
-use alloy_eips::{eip1898::BlockWithParent, BlockNumHash, Encodable2718};
+use alloy_eips::{eip1898::BlockWithParent, BlockNumHash};
 use alloy_primitives::{
     Address, BlockHash, BlockNumber, Bloom, Bytes, Sealed, TxHash, B256, B64, U256,
 };
@@ -330,7 +330,7 @@ impl<B: Block> RecoveredBlock<B> {
         self.body()
             .transactions_iter()
             .enumerate()
-            .find(|(_, tx)| tx.trie_hash() == tx_hash)
+            .find(|(_, tx)| *tx.tx_hash() == tx_hash)
             .map(|(index, tx)| IndexedTx { block: self, tx, index })
     }
 
@@ -687,7 +687,7 @@ impl<'a, B: Block> IndexedTx<'a, B> {
     /// Returns the transaction hash.
     #[inline]
     pub fn tx_hash(&self) -> TxHash {
-        self.tx.trie_hash()
+        *self.tx.tx_hash()
     }
 
     /// Returns the block hash.
@@ -704,7 +704,7 @@ impl<'a, B: Block> IndexedTx<'a, B> {
     /// Builds a [`TransactionMeta`] for the indexed transaction.
     pub fn meta(&self) -> TransactionMeta {
         TransactionMeta {
-            tx_hash: self.tx.trie_hash(),
+            tx_hash: *self.tx.tx_hash(),
             index: self.index as u64,
             block_hash: self.block.hash(),
             block_number: self.block.number(),
