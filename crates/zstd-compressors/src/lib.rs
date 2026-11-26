@@ -20,6 +20,13 @@ pub static RECEIPT_DICTIONARY: &[u8] = include_bytes!("../receipt_dictionary.bin
 /// Compression/Decompression dictionary for `Transaction`.
 pub static TRANSACTION_DICTIONARY: &[u8] = include_bytes!("../transaction_dictionary.bin");
 
+/// Returns the size of the zstd frame at the start of `src`.
+///
+/// Panics if `src` does not start with a complete zstd frame.
+pub fn frame_compressed_size(src: &[u8]) -> usize {
+    zstd::zstd_safe::find_frame_compressed_size(src).expect("invalid zstd frame")
+}
+
 #[cfg(feature = "std")]
 pub use locals::*;
 #[cfg(feature = "std")]

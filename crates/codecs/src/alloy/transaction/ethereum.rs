@@ -124,7 +124,7 @@ pub trait CompactEnvelope: Sized {
     ///
     /// `len` can either be the `buf` remaining length, or the length of the compacted type.
     ///
-    /// It will panic, if `len` is smaller than `buf.len()`.
+    /// It will panic if `len` is larger than `buf.len()`.
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]);
 }
 
@@ -167,7 +167,9 @@ impl<T: Envelope + ToTxCompact + Transaction + Send + Sync> CompactEnvelope for 
         buf.as_mut().len() - start
     }
 
-    fn from_compact(mut buf: &[u8], _len: usize) -> (Self, &[u8]) {
+    fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
+        // Decode only this envelope's `len` bytes and return everything after it.
+        let (mut buf, rest) = buf.split_at(len);
         let flags = buf.get_u8() as usize;
 
         let sig_bit = flags & 1;
@@ -176,19 +178,18 @@ impl<T: Envelope + ToTxCompact + Transaction + Send + Sync> CompactEnvelope for 
 
         let (signature, buf) = Signature::from_compact(buf, sig_bit);
 
-        let (transaction, buf) = if zstd_bit != 0 {
+        let transaction = if zstd_bit != 0 {
             reth_zstd_compressors::with_tx_decompressor(|decompressor| {
                 let decompressed = decompressor.decompress(buf);
                 let (tx_type, tx_buf) = T::TxType::from_compact(decompressed, tx_bits);
-                let (tx, _) = Self::from_tx_compact(tx_buf, tx_type, signature);
-                (tx, buf)
+                Self::from_tx_compact(tx_buf, tx_type, signature).0
             })
         } else {
             let (tx_type, buf) = T::TxType::from_compact(buf, tx_bits);
-            Self::from_tx_compact(buf, tx_type, signature)
+            Self::from_tx_compact(buf, tx_type, signature).0
         };
 
-        (transaction, buf)
+        (transaction, rest)
     }
 }
 
@@ -204,5 +205,66 @@ impl<Eip4844: Compact + RlpEcdsaEncodableTx + Transaction + Send + Sync> Compact
 
     fn from_compact(buf: &[u8], len: usize) -> (Self, &[u8]) {
         <Self as CompactEnvelope>::from_compact(buf, len)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Compact;
+    use alloy_consensus::{EthereumTxEnvelope, Signed, TxEip4844, TxLegacy};
+    use alloy_primitives::{hex, Bytes, Signature, U256};
+
+    type Envelope = EthereumTxEnvelope<TxEip4844>;
+
+    fn legacy(input_len: usize) -> Envelope {
+        let tx = TxLegacy {
+            chain_id: Some(1),
+            nonce: 7,
+            gas_price: 10,
+            gas_limit: 21_000,
+            to: alloy_primitives::TxKind::Call(alloy_primitives::Address::repeat_byte(0x11)),
+            value: U256::from(3),
+            input: Bytes::from(vec![0xab; input_len]),
+        };
+        let sig = Signature::new(U256::from(1), U256::from(2), false);
+        EthereumTxEnvelope::Legacy(Signed::new_unhashed(tx, sig))
+    }
+
+    // Encodings produced by the codec before the `len`/remainder fix. Decoding them proves the
+    // on-disk format is unchanged.
+    const UNCOMPRESSED: &str = "000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000023c8000101070a5208111111111111111111111111111111111111111103ababababababababababababababababababababababababababababababab";
+    const COMPRESSED: &str = "080100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000028b52ffd23e4c3b4133ead00006023c8000101070a52081103ab02cc60110004d408";
+
+    #[test]
+    fn compact_envelope_fixtures_and_remainder() {
+        for (input_len, fixture) in [(31, UNCOMPRESSED), (32, COMPRESSED)] {
+            let tx = legacy(input_len);
+            let fixture = hex::decode(fixture).unwrap();
+            assert_eq!(fixture[0] >> 3, (input_len >= 32) as u8, "zstd flag");
+
+            let mut buf = Vec::new();
+            let len = tx.to_compact(&mut buf);
+            assert_eq!(buf, fixture, "encoding changed");
+            assert_eq!(len, buf.len(), "to_compact must return bytes written");
+
+            let (decoded, rest) = Envelope::from_compact(&fixture, fixture.len());
+            assert_eq!(decoded, tx);
+            assert!(rest.is_empty());
+
+            // Followed by trailing bytes: consume exactly `len` and return the rest.
+            let mut trailing = fixture.clone();
+            trailing.extend_from_slice(&[0xde, 0xad]);
+            let (decoded, rest) = Envelope::from_compact(&trailing, len);
+            assert_eq!(decoded, tx);
+            assert_eq!(rest, &[0xde, 0xad]);
+
+            // Nested in Option followed by another value.
+            let mut nested = Vec::new();
+            let flag = Some(tx.clone()).to_compact(&mut nested);
+            7u64.to_compact(&mut nested);
+            let (decoded, rest) = Option::<Envelope>::from_compact(&nested, flag);
+            assert_eq!(decoded, Some(tx));
+            assert_eq!(u64::from_compact(rest, 1).0, 7);
+        }
     }
 }

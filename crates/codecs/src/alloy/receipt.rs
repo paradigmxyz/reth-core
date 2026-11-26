@@ -40,7 +40,6 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
         B: bytes::BufMut + AsMut<[u8]>,
     {
         let mut flags = ReceiptFlags::default();
-        let mut total_length = 0;
         let mut buffer = bytes::BytesMut::new();
 
         let tx_type_len = self.tx_type.to_compact(&mut buffer);
@@ -57,49 +56,42 @@ impl<T: Compact> Compact for AlloyEthereumReceipt<T> {
         }
 
         let flags = flags.into_bytes();
-        total_length += flags.len() + buffer.len();
         buf.put_slice(&flags);
         if zstd {
             reth_zstd_compressors::with_receipt_compressor(|compressor| {
                 let compressed = compressor.compress(&buffer).expect("Failed to compress.");
                 buf.put(compressed.as_slice());
-            });
+                flags.len() + compressed.len()
+            })
         } else {
+            let len = flags.len() + buffer.len();
             buf.put(buffer);
+            len
         }
-        total_length
     }
 
     fn from_compact(buf: &[u8], _len: usize) -> (Self, &[u8]) {
-        let (flags, mut buf) = ReceiptFlags::from(buf);
-        if flags.__zstd() != 0 {
-            reth_zstd_compressors::with_receipt_decompressor(|decompressor| {
-                let decompressed = decompressor.decompress(buf);
-                let original_buf = buf;
-                let mut buf: &[u8] = decompressed;
-                let (tx_type, new_buf) = T::from_compact(buf, flags.tx_type_len() as usize);
-                buf = new_buf;
-                let (success, new_buf) = bool::from_compact(buf, flags.success_len() as usize);
-                buf = new_buf;
-                let (cumulative_gas_used, new_buf) =
-                    u64::from_compact(buf, flags.cumulative_gas_used_len() as usize);
-                buf = new_buf;
-                let (logs, _) = Vec::<Log>::from_compact(buf, buf.len());
-                (Self { tx_type, success, cumulative_gas_used, logs }, original_buf)
-            })
-        } else {
-            let (tx_type, new_buf) = T::from_compact(buf, flags.tx_type_len() as usize);
-            buf = new_buf;
-            let (success, new_buf) = bool::from_compact(buf, flags.success_len() as usize);
-            buf = new_buf;
-            let (cumulative_gas_used, new_buf) =
+        fn fields<T: Compact>(flags: ReceiptFlags, buf: &[u8]) -> (AlloyEthereumReceipt<T>, &[u8]) {
+            let (tx_type, buf) = T::from_compact(buf, flags.tx_type_len() as usize);
+            let (success, buf) = bool::from_compact(buf, flags.success_len() as usize);
+            let (cumulative_gas_used, buf) =
                 u64::from_compact(buf, flags.cumulative_gas_used_len() as usize);
-            buf = new_buf;
-            let (logs, new_buf) = Vec::<Log>::from_compact(buf, buf.len());
-            buf = new_buf;
-            let obj = Self { tx_type, success, cumulative_gas_used, logs };
-            (obj, buf)
+            let (logs, buf) = Vec::<Log>::from_compact(buf, buf.len());
+            (AlloyEthereumReceipt { tx_type, success, cumulative_gas_used, logs }, buf)
         }
+
+        let (flags, body) = ReceiptFlags::from(buf);
+        if flags.__zstd() == 0 {
+            // Uncompressed receipts end after their count-prefixed logs, so `len` is not needed.
+            return fields(flags, body)
+        }
+        // Older encoders wrote the uncompressed size as the `Vec`/`Option` length prefix, which
+        // can be larger or smaller than the zstd frame, so take the zstd boundary from the frame.
+        let (frame, rest) = body.split_at(reth_zstd_compressors::frame_compressed_size(body));
+        let receipt = reth_zstd_compressors::with_receipt_decompressor(|d| {
+            fields(flags, d.decompress(frame)).0
+        });
+        (receipt, rest)
     }
 }
 
@@ -118,5 +110,101 @@ mod tests {
             let (decoded, _) = AlloyEthereumReceipt::<TxType>::from_compact(&compacted_receipt, len);
             assert_eq!(receipt, decoded)
         }
+    }
+
+    fn receipt(with_log: bool) -> AlloyEthereumReceipt<TxType> {
+        let logs = if with_log {
+            vec![Log::new_unchecked(
+                alloy_primitives::Address::repeat_byte(0x22),
+                vec![alloy_primitives::B256::repeat_byte(0x33)],
+                alloy_primitives::Bytes::from_static(b"reth"),
+            )]
+        } else {
+            vec![]
+        };
+        AlloyEthereumReceipt {
+            tx_type: TxType::Eip1559,
+            success: true,
+            cumulative_gas_used: 21_000,
+            logs,
+        }
+    }
+
+    // Encodings produced by the codec before the `len`/remainder fix. Decoding them proves the
+    // on-disk format is unchanged.
+    const UNCOMPRESSED: &str = "16520800";
+    const COMPRESSED: &str = "9628b52ffd23fc4269613da5000058520801392201337265746802cc80d1c200102c";
+
+    #[test]
+    fn receipt_fixtures_and_remainder() {
+        for (with_log, fixture) in [(false, UNCOMPRESSED), (true, COMPRESSED)] {
+            let receipt = receipt(with_log);
+            let fixture = alloy_primitives::hex::decode(fixture).unwrap();
+            assert_eq!(fixture[0] >> 7, with_log as u8, "zstd flag");
+
+            let mut buf = Vec::new();
+            let len = receipt.to_compact(&mut buf);
+            assert_eq!(buf, fixture, "encoding changed");
+            assert_eq!(len, buf.len(), "to_compact must return bytes written");
+
+            let (decoded, rest) =
+                AlloyEthereumReceipt::<TxType>::from_compact(&fixture, fixture.len());
+            assert_eq!(decoded, receipt);
+            assert!(rest.is_empty());
+
+            // Followed by trailing bytes: consume only the receipt and return the rest, whether
+            // `len` is the receipt's length or the remaining length a struct field passes.
+            let mut trailing = fixture.clone();
+            trailing.extend_from_slice(&[0xde, 0xad]);
+            for len in [len, trailing.len()] {
+                let (decoded, rest) = AlloyEthereumReceipt::<TxType>::from_compact(&trailing, len);
+                assert_eq!(decoded, receipt);
+                assert_eq!(rest, &[0xde, 0xad]);
+            }
+
+            // Nested in a Vec, whose element framing uses the returned length.
+            let receipts = vec![receipt.clone(), receipt.clone()];
+            let mut nested = Vec::new();
+            receipts.to_compact(&mut nested);
+            let (decoded, rest) =
+                Vec::<AlloyEthereumReceipt<TxType>>::from_compact(&nested, nested.len());
+            assert_eq!(decoded, receipts);
+            assert!(rest.is_empty());
+        }
+    }
+
+    #[test]
+    fn decodes_legacy_option_with_oversized_prefix() {
+        // `Some(receipt(true))` encoded before the fix: the prefix 0x3e (62) is the uncompressed
+        // length, but only the 34-byte compressed body follows.
+        let legacy = alloy_primitives::hex::decode(
+            "3e9628b52ffd23fc4269613da5000058520801392201337265746802cc80d1c200102c",
+        )
+        .unwrap();
+        let (decoded, _) = Option::<AlloyEthereumReceipt<TxType>>::from_compact(&legacy, 1);
+        assert_eq!(decoded, Some(receipt(true)));
+    }
+
+    #[test]
+    fn decodes_legacy_option_with_undersized_prefix() {
+        // `Some(receipt)` encoded before the fix, where zstd grew the body: the prefix 0x38 (56)
+        // is the uncompressed length, but a 57-byte receipt follows.
+        let legacy = alloy_primitives::hex::decode(
+            "388028b52ffd23fc426961375d0100440201352201976eb7813b278b773bcb9c225603ed69d1d4d80ea9adb030c8471b7100238ec30100091802",
+        )
+        .unwrap();
+        let expected = AlloyEthereumReceipt {
+            tx_type: TxType::Legacy,
+            success: false,
+            cumulative_gas_used: 0,
+            logs: vec![Log::new_unchecked(
+                alloy_primitives::Address::repeat_byte(0x22),
+                vec![alloy_primitives::keccak256(b"reth")],
+                alloy_primitives::Bytes::new(),
+            )],
+        };
+        let (decoded, rest) = Option::<AlloyEthereumReceipt<TxType>>::from_compact(&legacy, 1);
+        assert_eq!(decoded, Some(expected));
+        assert!(rest.is_empty());
     }
 }
